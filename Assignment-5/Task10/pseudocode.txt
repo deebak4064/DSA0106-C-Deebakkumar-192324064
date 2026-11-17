@@ -1,0 +1,50 @@
+CLASS OutOfBoundsException
+    PRIVATE:
+        REAL value
+    PUBLIC:
+        CONSTRUCTOR(v AS REAL)
+            value ← v
+        ENDCONSTRUCTOR
+        METHOD GetValue() RETURNS REAL
+            RETURN value
+        ENDMETHOD
+ENDCLASS
+
+FUNCTION CalibrateThermalSensors(rawVoltage AS REAL) RETURNS REAL NOEXCEPT(FALSE)
+    CONSTANT REAL MIN_TEMP ← -273.15
+    CONSTANT REAL MAX_TEMP ← 1500.0
+    REAL temperature ← (rawVoltage - 0.5) * 100.0    // 10 mV per degree, 0.5 V offset
+    IF temperature < MIN_TEMP OR temperature > MAX_TEMP THEN
+        THROW NEW OutOfBoundsException(temperature)  // allowed: may-throw function
+    ENDIF
+    RETURN temperature
+ENDFUNCTION
+
+FUNCTION CommitTelemetry(finalTemp AS REAL) NOEXCEPT
+    TRY
+        IF finalTemp > 1000.0 THEN
+            THROW NEW RuntimeError("bus frame overflow")   // internal fault
+        ENDIF
+        WRITE_TO_AVIONICS_BUS(finalTemp)
+        PRINT "Committed ", finalTemp, " C to avionics bus"
+    CATCH (...)
+        PRINT "Commit fault suppressed inside noexcept function"
+    ENDTRY                                       // nothing can escape: contract kept
+ENDFUNCTION
+
+BEGIN Main
+    ASSERT_AT_COMPILE_TIME(NOEXCEPT(CommitTelemetry(0.0)) = TRUE)
+    ARRAY readings[3] OF REAL ← {3.20, -2.50, 12.00}
+    INTEGER i
+    REAL t
+    FOR i ← 0 TO 2 STEP 1
+        TRY                                      // safety harness
+            t ← CalibrateThermalSensors(readings[i])
+            CommitTelemetry(t)
+        CATCH (e AS REF OutOfBoundsException)
+            PRINT "[MAIN] OutOfBoundsException: ", e.GetValue(), " C; reading rejected"
+        CATCH (...)
+            PRINT "[MAIN] unknown calibration failure"
+        ENDTRY
+    ENDFOR
+END

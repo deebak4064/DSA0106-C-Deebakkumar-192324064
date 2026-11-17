@@ -1,0 +1,79 @@
+CLASS TransactionException
+    PROTECTED:
+        STRING reason
+    PUBLIC:
+        CONSTRUCTOR(r AS STRING)
+            reason ← r
+        ENDCONSTRUCTOR
+        VIRTUAL DESTRUCTOR()
+        ENDDESTRUCTOR
+        METHOD GetReason() RETURNS STRING
+            RETURN reason
+        ENDMETHOD
+ENDCLASS
+
+CLASS AccountFrozenException EXTENDS TransactionException
+    PUBLIC:
+        CONSTRUCTOR(r AS STRING) : BASE(r)
+        ENDCONSTRUCTOR
+ENDCLASS
+
+CLASS DailyLimitExceededException EXTENDS TransactionException
+    PRIVATE:
+        REAL excessAmount
+    PUBLIC:
+        CONSTRUCTOR(r AS STRING, excess AS REAL) : BASE(r)
+            excessAmount ← excess
+        ENDCONSTRUCTOR
+        METHOD GetExcess() RETURNS REAL
+            RETURN excessAmount
+        ENDMETHOD
+ENDCLASS
+
+// ---------- Tier 1: low-level ledger ----------
+FUNCTION DebitLedger(REF acc AS Account, amount AS REAL)
+    CONSTANT REAL DAILY_LIMIT ← 50000.00
+    IF acc.frozen = TRUE THEN
+        THROW NEW AccountFrozenException("Account " + acc.id + " is frozen")
+    ENDIF
+    IF acc.withdrawnToday + amount > DAILY_LIMIT THEN
+        THROW NEW DailyLimitExceededException("Daily limit exceeded",
+                                              acc.withdrawnToday + amount - DAILY_LIMIT)
+    ENDIF
+    acc.withdrawnToday ← acc.withdrawnToday + amount
+ENDFUNCTION
+
+// ---------- Tier 2: audit wrapper ----------
+FUNCTION AuditTransactionWrapper(REF acc AS Account, amount AS REAL)
+    TRY
+        DebitLedger(acc, amount)
+    CATCH (e AS REF TransactionException)
+        PRINT "[AUDIT] security log: ", e.GetReason()
+        RETHROW                                  // same object, dynamic type kept
+    ENDTRY
+ENDFUNCTION
+
+// ---------- Tier 3: client ----------
+FUNCTION Withdraw(REF acc AS Account, amount AS REAL)
+    TRY
+        AuditTransactionWrapper(acc, amount)
+        PRINT "Notice: withdrawal approved"
+    CATCH (e AS REF AccountFrozenException)       // most specific first
+        PRINT "Notice: account frozen, contact your branch"
+    CATCH (e AS REF DailyLimitExceededException)
+        PRINT "Notice: limit exceeded by $", e.GetExcess()
+    CATCH (e AS REF TransactionException)
+        PRINT "Notice: transaction failed: ", e.GetReason()
+    CATCH (...)                                  // catch-all: last
+        PRINT "Notice: unexpected system error"
+    ENDTRY
+ENDFUNCTION
+
+BEGIN Main
+    Account frozenAcc ← {id: "ACC-1001", frozen: TRUE,  withdrawnToday: 0.00}
+    Account busyAcc   ← {id: "ACC-2002", frozen: FALSE, withdrawnToday: 49500.00}
+    Account normalAcc ← {id: "ACC-3003", frozen: FALSE, withdrawnToday: 0.00}
+    Withdraw(frozenAcc, 1000.00)
+    Withdraw(busyAcc, 1000.00)
+    Withdraw(normalAcc, 1000.00)
+END

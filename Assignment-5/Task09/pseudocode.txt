@@ -1,0 +1,62 @@
+CLASS ResourceGuard                              // RAII wrapper
+    PRIVATE:
+        STRING  resourceName
+        INTEGER handle
+    PUBLIC:
+        CONSTRUCTOR(name AS STRING)              // acquire
+            resourceName ← name
+            handle ← OPEN_HANDLE(name)
+            PRINT "[ACQUIRE] handle ", handle, " opened for ", resourceName
+        ENDCONSTRUCTOR
+        DESTRUCTOR()                             // release: runs automatically
+            CLOSE_HANDLE(handle)
+            PRINT "[RELEASE] handle ", handle, " closed for ", resourceName
+        ENDDESTRUCTOR
+ENDCLASS
+
+CLASS CRCValidationException
+    PRIVATE:
+        INTEGER expected
+        INTEGER calculated
+    PUBLIC:
+        CONSTRUCTOR(e AS INTEGER, c AS INTEGER)
+            expected ← e
+            calculated ← c
+        ENDCONSTRUCTOR
+        METHOD GetExpected() RETURNS INTEGER
+            RETURN expected
+        ENDMETHOD
+        METHOD GetCalculated() RETURNS INTEGER
+            RETURN calculated
+        ENDMETHOD
+ENDCLASS
+
+FUNCTION IngestDataStream(fileName AS STRING)
+    IF fileName = "" THEN
+        THROW NEW InvalidArgumentException("empty file name")
+    ENDIF
+    ResourceGuard guard ← NEW ResourceGuard(fileName)   // local automatic object
+    STRING  dataBlocks    ← READ_BLOCKS(guard)
+    INTEGER expectedCRC   ← READ_HEADER_CHECKSUM(guard)
+    INTEGER calculatedCRC ← CRC32(dataBlocks)
+    IF calculatedCRC <> expectedCRC THEN
+        THROW NEW CRCValidationException(expectedCRC, calculatedCRC)
+    ENDIF
+    PRINT "Data accepted."                       // skipped if an exception is thrown
+ENDFUNCTION                                      // guard destroyed here, normally or by unwinding
+
+FUNCTION RunIngestion(fileName AS STRING)
+    TRY
+        IngestDataStream(fileName)
+    CATCH (e AS REF CRCValidationException)
+        PRINT "[CATCH] CRC error: expected ", HEX(e.GetExpected()),
+              ", calculated ", HEX(e.GetCalculated())
+    CATCH (...)
+        PRINT "[CATCH-ALL] unexpected failure; pipeline halted safely"
+    ENDTRY
+ENDFUNCTION
+
+BEGIN Main
+    RunIngestion("telemetry_0423.bin")           // CRC mismatch path
+    RunIngestion("")                             // catch-all path
+END

@@ -1,0 +1,400 @@
+UNIT V: Virtual Functions, Polymorphism & Exception Handling
+Question Bank: Debugging & Pseudo-Code Formulation (Questions Only)
+
+1. Syllabus & Topic Scope
+• Virtual Functions: Purpose and need for virtual functions, static/early binding vs. dynamic/late binding, member function dynamic dispatch.
+• Internal Mechanics of Virtual Functions: Virtual method table (vtable), virtual table pointer (vptr), compiler overhead and indirection cost.
+• Virtual Destructors: Why base classes with virtual functions require virtual destructors, preventing undefined behavior and memory leaks during polymorphic deletion via base pointers.
+• Pure Virtual Functions: Syntax (virtual void func() = 0;), semantic role in defining pure abstract interfaces.
+• Runtime Polymorphism: Achieving uniform runtime interfaces using base class pointers and references pointing to derived class instances.
+• Exception Handling Mechanism: Philosophy of structured error handling, try, catch, and throw keywords, control flow transfer during exceptions.
+• Stack Unwinding: Automatic destruction of local stack objects during exception propagation.
+• Throwing, Catching & Rethrowing Exceptions: Throwing primitive values, standard library exceptions, and custom exception classes; catching by reference to prevent object slicing; rethrowing exceptions using bare throw; vs. copy-slicing throw e;.
+• Catch-All Handler (catch(...)): Universal catch block, placement as the final fallback.
+• Order of Catch Handlers: Subclass-before-superclass catch ordering requirement to prevent unreachable handlers.
+• Specifying Exceptions: Dynamic exception specifications (historical context) and modern noexcept specifiers.
+
+2. Assessment Instructions & Rules ("How to Do & What to Do")
+A. Instructions for Debugging Questions
+When debugging runtime polymorphism and exception handling in C++:
+1. Verify Virtual Destructor Presence:
+• Inspect base classes designed for polymorphic deletion (delete basePtr;). If the base class destructor is not declared virtual, the derived class destructor will NOT execute, resulting in memory leaks and Undefined Behavior.
+2. Inspect Catch Handler Ordering:
+• Check the order of catch blocks. In C++, catch handlers match sequentially. If a base class exception handler (catch (const BaseException &e)) precedes a derived class handler (catch (const DerivedException &e)), the derived handler is unreachable.
+3. Examine Exception Rethrowing:
+• Inspect catch blocks that rethrow exceptions. Writing throw e; creates a copy with the static type of e, causing Exception Slicing. To preserve the dynamic derived exception type, bare throw; must be used.
+4. Identify Abstract Class Instantiation:
+• Check whether a derived class inherits pure virtual functions (= 0). If the derived class fails to provide an implementation for even a single pure virtual function, it remains an abstract class and cannot be instantiated directly.
+5. Inspect Polymorphic Parameter Passing:
+• Verify whether functions accepting polymorphic objects take them by reference (const Base&) or by pointer (Base*). Passing by value (Base b) triggers object slicing and suppresses dynamic binding via vtable.
+6. Required Output Format:
+• State line numbers and classify the bug.
+• Provide the theoretical analysis referencing vtable/vptr mechanics or exception handling runtime semantics.
+• Provide the corrected C++ code.
+• Provide the dry run and terminal output.
+B. Instructions for Pseudo-Code Writing Questions
+1. Polymorphic Architecture Modeling:
+• Define abstract interfaces using ABSTRACT CLASS and PURE VIRTUAL METHOD method().
+• Model derived overrides with OVERRIDE METHOD method().
+• Include virtual destructors: VIRTUAL DESTRUCTOR().
+2. Exception Flow Modeling:
+• Use standard exception handling syntax: TRY, THROW NEW ExceptionType(...), CATCH (e AS ExceptionType), RETHROW, CATCH (...).
+3. Traceability:
+• Include a trace table tracking control jumps during normal execution, exception throw events, stack unwinding destruction, and catch handler execution.
+
+3. Section A: Debugging Questions (5 Problems)
+
+Question 1: Non-Virtual Destructor Memory Leak in Polymorphic Deletion
+Topic: Virtual Functions, Virtual Destructors, Dynamic Dispatch
+Problem Statement
+A graphical rendering engine manages polygon objects through base class Shape* pointers. When objects are deleted through the base pointer, the derived destructor fails to run, causing severe memory leaks of dynamically allocated vertex coordinate arrays.
+Buggy Code
+#include <iostream>
+
+class Shape {
+public:
+Shape() { std::cout << "Shape created." << std::endl; }
+
+// Line 7: Non-virtual destructor in base class!
+~Shape() {
+std::cout << "Shape destroyed." << std::endl;
+}
+
+virtual void render() const {
+std::cout << "Rendering generic shape." << std::endl;
+}
+};
+
+class ComplexPolygon : public Shape {
+private:
+double *vertexArray;
+int vertexCount;
+
+public:
+ComplexPolygon(int count) : vertexCount(count) {
+vertexArray = new double[vertexCount * 2];
+std::cout << "Allocated " << vertexCount << " vertices on heap." << std::endl;
+}
+
+~ComplexPolygon() {
+std::cout << "Deallocating polygon vertex heap memory." << std::endl;
+delete[] vertexArray; // Never executed!
+}
+
+void render() const override {
+std::cout << "Rendering polygon with " << vertexCount << " vertices." << std::endl;
+}
+};
+
+int main() {
+Shape *shapePtr = new ComplexPolygon(1000);
+shapePtr->render();
+
+// Line 41: Polymorphic deletion through base pointer
+delete shapePtr;
+
+return 0;
+}
+
+Student Tasks
+1. Explain why ~ComplexPolygon() is never called when delete shapePtr; executes on Line 41. How does the compiler resolve destructor calls in the absence of the virtual keyword?
+2. State the C++ standard rule regarding deleting a derived object through a base class pointer that lacks a virtual destructor. What kind of behavior is this classified as?
+3. Add the virtual keyword in the appropriate location and explain how the virtual method table (vtable) ensures proper destructor chaining from derived to base.
+4. Show the complete corrected code and its terminal output.
+
+Question 2: Inverted Exception Catch Handlers & Unreachable Code
+Topic: Exception Handling Mechanism, Catch Handler Ordering
+Problem Statement
+A banking software application defines a hierarchy of custom exceptions. A developer writes a try-catch block to handle withdrawals, but the specific derived exception handler for overdrafts is never reached because the base exception handler shadows it.
+Buggy Code
+#include <iostream>
+#include <string>
+
+// Base custom exception
+class BankingException {
+protected:
+std::string msg;
+public:
+BankingException(std::string m) : msg(m) {}
+virtual std::string getMessage() const { return msg; }
+};
+
+// Derived specific exception
+class InsufficientFundsException : public BankingException {
+private:
+double shortfall;
+public:
+InsufficientFundsException(std::string m, double sf)
+: BankingException(m), shortfall(sf) {}
+
+double getShortfall() const { return shortfall; }
+};
+
+void processWithdrawal(double balance, double amount) {
+if (amount > balance) {
+throw InsufficientFundsException("Account overdrawn!", amount - balance);
+}
+}
+
+int main() {
+try {
+processWithdrawal(500.0, 750.0);
+}
+// Line 34: Base handler placed FIRST!
+catch (const BankingException &be) {
+std::cout << "General Banking Error: " << be.getMessage() << std::endl;
+}
+// Line 38: Specific derived handler placed SECOND!
+catch (const InsufficientFundsException &ife) {
+std::cout << "Shortfall of: $" << ife.getShortfall() << std::endl;
+}
+
+return 0;
+}
+
+Student Tasks
+1. Identify the warning/error generated by compilers on Line 38 (exception of type 'InsufficientFundsException' will be caught by earlier handler).
+2. Explain the mechanism of catch-matching in C++. Why does catch (const BankingException &be) match an object of type InsufficientFundsException?
+3. State the rule for ordering exception handlers in C++ when dealing with inheritance hierarchies.
+4. Provide the corrected try-catch block including a catch-all fallback handler (catch(...)).
+
+Question 3: Exception Rethrowing Slicing Bug (throw e; vs. throw;)
+Topic: Throwing, Catching & Rethrowing an Exception, Object Slicing
+Problem Statement
+An intermediate error-logging routine intercepts database errors to log audit events and rethrows them for client handling in main(). However, the client fails to catch the specific derived TimeoutError because the intermediate routine accidentally slices the exception during rethrow.
+Buggy Code
+#include <iostream>
+#include <exception>
+#include <string>
+
+class DatabaseError : public std::exception {
+protected:
+std::string errorDetails;
+public:
+DatabaseError(std::string msg) : errorDetails(msg) {}
+const char* what() const noexcept override {
+return errorDetails.c_str();
+}
+};
+
+class TimeoutError : public DatabaseError {
+public:
+int timeoutMs;
+TimeoutError(std::string msg, int ms)
+: DatabaseError(msg), timeoutMs(ms) {}
+};
+
+void executeQuery() {
+throw TimeoutError("Query timed out connecting to shard 3", 5000);
+}
+
+void intermediateAuditor() {
+try {
+executeQuery();
+}
+catch (const DatabaseError &e) {
+std::cout << "[AUDIT LOG]: Intercepted DB error." << std::endl;
+
+// Line 32: Slicing rethrow bug!
+throw e; // Throws a copy of static type DatabaseError!
+}
+}
+
+int main() {
+try {
+intermediateAuditor();
+}
+catch (const TimeoutError &te) {
+std::cout << "Client caught TimeoutError! Duration: " << te.timeoutMs << " ms" << std::endl;
+}
+catch (const DatabaseError &de) {
+std::cout << "Client caught generic DatabaseError: " << de.what() << std::endl;
+}
+return 0;
+}
+
+Student Tasks
+1. Explain what output the program currently prints in main() and why catch (const TimeoutError &te) is bypassed.
+2. What is the fundamental difference between writing throw e; and bare throw; inside a catch block? How does copy construction interact with throw e;?
+3. Correct Line 32 to ensure the original polymorphic exception object propagates without loss of derived attributes.
+4. Show the corrected output.
+
+Question 4: Attempting to Instantiate an Incomplete Abstract Class
+Topic: Pure Virtual Functions, Abstract Classes, Runtime Interfaces
+Problem Statement
+A networking library defines an abstract interface NetworkPacket with pure virtual functions. A derived class VideoPacket attempts to create an object, but the compiler aborts compilation because the derived class omitted the implementation of one of the pure virtual functions.
+Buggy Code
+#include <iostream>
+
+class NetworkPacket {
+public:
+virtual ~NetworkPacket() {}
+
+// Pure Virtual Functions
+virtual void serialize() = 0;
+virtual int getPacketSize() = 0;
+};
+
+// Subclass fails to override getPacketSize()
+class VideoPacket : public NetworkPacket {
+private:
+int frameID;
+
+public:
+VideoPacket(int id) : frameID(id) {}
+
+void serialize() override {
+std::cout << "Serializing H.264 Video Frame: " << frameID << std::endl;
+}
+// Missing getPacketSize() override!
+};
+
+int main() {
+// Line 25: Attempting to instantiate VideoPacket!
+VideoPacket packet(1042);
+packet.serialize();
+return 0;
+}
+
+Student Tasks
+1. State the exact compilation error that occurs on Line 25.
+2. What technical condition makes a class an "Abstract Class" in C++? Can an abstract class ever be directly instantiated?
+3. Under what conditions does a class derived from an abstract base class become a concrete, instantiable class?
+4. Provide the corrected C++ code implementing all pure virtual functions.
+
+Question 5: Pass-by-Value Object Slicing Suppressing Dynamic Binding
+Topic: Runtime Polymorphism, Early vs. Late Binding, Object Slicing
+Problem Statement
+A battle simulator game uses runtime polymorphism to handle creature encounters. When entities are passed into a dispatch function triggerEncounter, the derived creature behavior (Dragon::attack) is suppressed, and generic base class behavior (Entity::attack) executes instead.
+Buggy Code
+#include <iostream>
+
+class Entity {
+public:
+virtual ~Entity() {}
+virtual void attack() const {
+std::cout << "Entity performs generic scratch." << std::endl;
+}
+};
+
+class Dragon : public Entity {
+public:
+void attack() const override {
+std::cout << "Dragon breathes scorching fire!" << std::endl;
+}
+};
+
+// Line 17: Takes polymorphic parameter by value!
+void triggerEncounter(Entity e) {
+e.attack(); // Calls Entity::attack(), not Dragon::attack()
+}
+
+int main() {
+Dragon boss;
+
+// Developer expects "Dragon breathes scorching fire!"
+triggerEncounter(boss);
+
+return 0;
+}
+
+Student Tasks
+1. Explain why triggerEncounter(boss) prints "Entity performs generic scratch.".
+2. Explain the role of the virtual table pointer (vptr) during pass-by-value versus pass-by-reference. What happens to the vptr inside the copied Entity e object?
+3. Refactor triggerEncounter to enable late binding / dynamic dispatch.
+4. Show the verified terminal output.
+
+4. Section B: Pseudo-Code Writing Questions (5 Problems)
+
+Question 1: Universal Payment Gateway with Runtime Polymorphism
+Topic: Pure Virtual Functions, Runtime Polymorphism, Abstract Base Classes
+Scenario
+Design an enterprise payment transaction dispatcher using Pure Virtual Functions & Runtime Polymorphism:
+• Abstract Base Class: PaymentGateway
+• Pure Virtual Method: Authorize(amount AS REAL) RETURNS BOOLEAN
+• Pure Virtual Method: Capture() RETURNS BOOLEAN
+• Virtual Destructor
+• Concrete Subclasses:
+• CreditCardGateway: Validates card length (16 digits) and 3-digit CVV.
+• CryptoGateway: Verifies wallet hash prefix ("0x") and simulates gas fee validation.
+• In Main, dynamically instantiate the chosen gateway via a base pointer PaymentGateway*, authorize and capture funds, and safely deallocate the instance.
+Functional Requirements
+1. Delineate the abstract base class and pure virtual method signatures.
+2. Implement overriding methods in CreditCardGateway and CryptoGateway.
+3. In Main, demonstrate polymorphic late binding where the method call gatewayPtr->Authorize(1500.00) executes the derived class implementation based on runtime pointer assignment.
+Student Tasks
+1. Write the formal structured pseudo-code for the payment gateway architecture.
+2. Trace the execution flow for a \$1,500 cryptocurrency payment, showing each method dispatched through the base pointer.
+
+Question 2: Resilient Banking Engine with Nested Try-Catch & Rethrowing
+Topic: Custom Exception Hierarchy, Nested try-catch, Rethrowing
+Scenario
+Design a fault-tolerant banking transaction engine that implements Custom Exception Hierarchies, Nested Try-Catch, and Exception Rethrowing:
+• Custom Exception Classes:
+• TransactionException (Base class with attribute reason AS STRING).
+• AccountFrozenException (Inherits TransactionException).
+• DailyLimitExceededException (Inherits TransactionException, adds excessAmount AS REAL).
+• Processing Layers:
+• Low-level function DebitLedger(): Throws exceptions if account is frozen or daily limit ($50,000) is exceeded.
+• Intermediate function AuditTransactionWrapper(): Intercepts TransactionException, writes a security audit log, and rethrows (RETHROW) the active exception.
+• High-level Main(): Catches specific derived exceptions and displays appropriate client notices.
+Functional Requirements
+1. Define the exception inheritance hierarchy.
+2. Structure the nested TRY-CATCH blocks across the two calling tiers.
+3. Explicitly demonstrate the RETHROW operation in the middle tier.
+Student Tasks
+1. Write the structured pseudo-code for the classes and functions.
+2. Construct a dry-run trace table tracking control jumps when a withdrawal of \$1,000 is attempted on a frozen account.
+
+Question 3: Polymorphic Game Engine with Virtual Destructors
+Topic: Virtual Functions, Virtual Destructors, Polymorphic Object Lifecycles
+Scenario
+Design a game entity lifecycle manager that processes game objects polymorphically and ensures leak-free destruction:
+• Abstract Base Class GameObject:
+• Pure virtual methods: Update(deltaTime AS REAL) and Render().
+• Virtual destructor ~GameObject().
+• Derived Class ParticleSystem:
+• Dynamically allocates an array of particle coordinates in heap memory.
+• Overrides Update, Render, and the destructor (releasing dynamic particle array).
+• Driver Program:
+• Allocate game entities dynamically and store in an array of base pointers GameObject*.
+• Execute a simulation step (Update and Render).
+• Deallocate all entities using DEALLOCATE sceneEntities[i], relying on virtual destructors to prevent heap leaks.
+Student Tasks
+1. Write the formal structured pseudo-code showing base and derived classes with virtual destructors.
+2. Trace the cleanup phase, explaining the exact destructor execution order when DEALLOCATE is called on a base pointer.
+
+Question 4: File Stream Pipeline with Stack Unwinding & Catch-All
+Topic: Stack Unwinding, Resource Acquisition (RAII), Catch-All Handler
+Scenario
+Develop the pseudo-code for a mission-critical File Ingestion Pipeline that demonstrates Stack Unwinding:
+• Class ResourceGuard: Manages a hardware/file descriptor handle. Constructor acquires handle; destructor automatically releases handle.
+• Custom Exception: CRCValidationException (contains expected and calculated checksums).
+• Function IngestDataStream(fileName):
+• Creates a local automatic instance of ResourceGuard.
+• Reads data blocks and computes CRC checksum.
+• If CRC mismatches, throws CRCValidationException.
+• Driver Main():
+• Encloses call in TRY-CATCH.
+• Demonstrates that during exception throw, ResourceGuard's destructor is automatically invoked during Stack Unwinding before the catch block executes.
+• Employs both specific catch and universal catch-all CATCH (...).
+Student Tasks
+1. Write the structured pseudo-code demonstrating RAII and stack unwinding.
+2. Draw or trace the sequence of events showing how the local stack object is destroyed when a CRC error triggers an exception.
+
+Question 5: Scientific Telemetry Calibration with noexcept Contracts
+Topic: Specifying Exceptions, noexcept Contracts, Boundary Assertions
+Scenario
+Develop an aerospace telemetry validator demonstrating Exception Specifications / noexcept Contracts:
+• Function CalibrateThermalSensors(rawVoltage AS REAL) RETURNS REAL:
+• Potentially throwing function (noexcept(FALSE)).
+• Computes temperature from raw voltage.
+• Validates bounds ($-273.15^\circ\text{C}$ to $+1500.0^\circ\text{C}$). Throws OutOfBoundsException if violated.
+• Function CommitTelemetry(finalTemp AS REAL) NOEXCEPT:
+• Strictly non-throwing function (NOEXCEPT contract).
+• Commits reading to avionics hardware bus.
+• Internally catches and suppresses all exceptions to guarantee the noexcept contract is never broken (preventing system abort).
+• Driver Main() orchestrates calibration and commitment within a structured safety harness.
+Student Tasks
+1. Write the structured pseudo-code showing explicit throwing rules and noexcept enforcement.
+2. Trace the pipeline with a faulty voltage reading producing $-300.0^\circ\text{C}$, showing the exception caught in Main.

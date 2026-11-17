@@ -1,0 +1,97 @@
+ABSTRACT CLASS PaymentGateway
+    PUBLIC:
+        VIRTUAL DESTRUCTOR()
+            PRINT "~PaymentGateway()"
+        ENDDESTRUCTOR
+        PURE VIRTUAL METHOD Authorize(amount AS REAL) RETURNS BOOLEAN
+        PURE VIRTUAL METHOD Capture() RETURNS BOOLEAN
+ENDCLASS
+
+CLASS CreditCardGateway EXTENDS PaymentGateway
+    PRIVATE:
+        STRING cardNumber
+        STRING cvv
+        REAL   authorizedAmount
+    PUBLIC:
+        CONSTRUCTOR(card AS STRING, code AS STRING)
+            cardNumber ← card
+            cvv ← code
+            authorizedAmount ← 0.0
+        ENDCONSTRUCTOR
+        DESTRUCTOR()
+            PRINT "~CreditCardGateway()"
+        ENDDESTRUCTOR
+        OVERRIDE METHOD Authorize(amount AS REAL) RETURNS BOOLEAN
+            BOOLEAN cardOk ← LENGTH(cardNumber) = 16 AND ALL_DIGITS(cardNumber)
+            BOOLEAN cvvOk  ← LENGTH(cvv) = 3 AND ALL_DIGITS(cvv)
+            IF cardOk = FALSE OR cvvOk = FALSE THEN
+                RETURN FALSE
+            ENDIF
+            authorizedAmount ← amount
+            RETURN TRUE
+        ENDMETHOD
+        OVERRIDE METHOD Capture() RETURNS BOOLEAN
+            IF authorizedAmount <= 0.0 THEN
+                RETURN FALSE
+            ENDIF
+            PRINT "settled $", authorizedAmount
+            authorizedAmount ← 0.0
+            RETURN TRUE
+        ENDMETHOD
+ENDCLASS
+
+CLASS CryptoGateway EXTENDS PaymentGateway
+    PRIVATE:
+        STRING walletHash
+        REAL   walletBalance
+        REAL   authorizedAmount
+        CONSTANT REAL GAS_FEE ← 2.75             // simulated network fee
+    PUBLIC:
+        CONSTRUCTOR(wallet AS STRING, balance AS REAL)
+            walletHash ← wallet
+            walletBalance ← balance
+            authorizedAmount ← 0.0
+        ENDCONSTRUCTOR
+        DESTRUCTOR()
+            PRINT "~CryptoGateway()"
+        ENDDESTRUCTOR
+        OVERRIDE METHOD Authorize(amount AS REAL) RETURNS BOOLEAN
+            IF SUBSTRING(walletHash, 0, 2) <> "0x" THEN
+                RETURN FALSE                     // invalid wallet prefix
+            ENDIF
+            IF amount + GAS_FEE > walletBalance THEN
+                RETURN FALSE                     // cannot cover amount + gas
+            ENDIF
+            authorizedAmount ← amount
+            RETURN TRUE
+        ENDMETHOD
+        OVERRIDE METHOD Capture() RETURNS BOOLEAN
+            IF authorizedAmount <= 0.0 THEN
+                RETURN FALSE
+            ENDIF
+            walletBalance ← walletBalance - (authorizedAmount + GAS_FEE)
+            PRINT "settled $", authorizedAmount, ", wallet now $", walletBalance
+            authorizedAmount ← 0.0
+            RETURN TRUE
+        ENDMETHOD
+ENDCLASS
+
+FUNCTION ProcessPayment(method AS STRING, amount AS REAL)
+    DECLARE gatewayPtr AS POINTER TO PaymentGateway
+    IF method = "CRYPTO" THEN
+        gatewayPtr ← NEW CryptoGateway("0x4a9F2c7E1b3D8e5A6f0C2d4B7e9A1c3F", 2000.00)
+    ELSE
+        gatewayPtr ← NEW CreditCardGateway("4111111111111111", "123")
+    ENDIF
+    IF gatewayPtr->Authorize(amount) AND gatewayPtr->Capture() THEN   // late binding
+        PRINT "Payment SUCCESSFUL"
+    ELSE
+        PRINT "Payment DECLINED"
+    ENDIF
+    DEALLOCATE gatewayPtr                        // virtual destructor chain
+ENDFUNCTION
+
+BEGIN Main
+    ProcessPayment("CRYPTO", 1500.00)
+    ProcessPayment("CARD", 1500.00)
+END

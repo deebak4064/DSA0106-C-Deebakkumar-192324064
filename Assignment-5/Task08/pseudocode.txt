@@ -1,0 +1,81 @@
+ABSTRACT CLASS GameObject
+    PROTECTED:
+        STRING name
+    PUBLIC:
+        CONSTRUCTOR(n AS STRING)
+            name ← n
+        ENDCONSTRUCTOR
+        VIRTUAL DESTRUCTOR()
+            PRINT "~GameObject(", name, ")"
+        ENDDESTRUCTOR
+        PURE VIRTUAL METHOD Update(deltaTime AS REAL)
+        PURE VIRTUAL METHOD Render()
+ENDCLASS
+
+CLASS ParticleSystem EXTENDS GameObject
+    PRIVATE:
+        INTEGER particleCount
+        POINTER TO REAL coords                   // x0, y0, x1, y1, ...
+        REAL velocity
+    PUBLIC:
+        CONSTRUCTOR(n AS STRING, count AS INTEGER, v AS REAL) : BASE(n)
+            INTEGER i
+            particleCount ← count
+            velocity ← v
+            coords ← ALLOCATE ARRAY[particleCount * 2] OF REAL
+            FOR i ← 0 TO particleCount * 2 - 1 STEP 1
+                coords[i] ← 0.0
+            ENDFOR
+        ENDCONSTRUCTOR
+        OVERRIDE DESTRUCTOR()
+            PRINT "~ParticleSystem(", name, "): releasing particle array"
+            DEALLOCATE coords
+        ENDDESTRUCTOR
+        OVERRIDE METHOD Update(deltaTime AS REAL)
+            INTEGER i
+            FOR i ← 0 TO particleCount - 1 STEP 1
+                coords[2 * i]     ← coords[2 * i] + velocity * deltaTime * (i + 1)
+                coords[2 * i + 1] ← coords[2 * i + 1] + velocity * deltaTime
+            ENDFOR
+        ENDMETHOD
+        OVERRIDE METHOD Render()
+            PRINT "Render ", name, ": ", particleCount, " particles, p0 = (",
+                  coords[0], ", ", coords[1], ")"
+        ENDMETHOD
+ENDCLASS
+
+CLASS PlayerSprite EXTENDS GameObject          // second entity type, no heap data
+    PRIVATE:
+        REAL x
+    PUBLIC:
+        CONSTRUCTOR(n AS STRING) : BASE(n)
+            x ← 0.0
+        ENDCONSTRUCTOR
+        OVERRIDE DESTRUCTOR()
+            PRINT "~PlayerSprite(", name, ")"
+        ENDDESTRUCTOR
+        OVERRIDE METHOD Update(deltaTime AS REAL)
+            x ← x + 5.0 * deltaTime
+        ENDMETHOD
+        OVERRIDE METHOD Render()
+            PRINT "Render ", name, ": x = ", x
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    CONSTANT INTEGER N ← 2
+    DECLARE sceneEntities AS ARRAY[N] OF (POINTER TO GameObject)
+    INTEGER i
+    sceneEntities[0] ← NEW ParticleSystem("Smoke", 500, 2.0)
+    sceneEntities[1] ← NEW PlayerSprite("Hero")
+
+    FOR i ← 0 TO N - 1 STEP 1                    // simulation step
+        sceneEntities[i]->Update(0.016)
+        sceneEntities[i]->Render()
+    ENDFOR
+
+    FOR i ← 0 TO N - 1 STEP 1                    // cleanup
+        DEALLOCATE sceneEntities[i]              // virtual destructor: derived, then base
+        sceneEntities[i] ← NULL
+    ENDFOR
+END
