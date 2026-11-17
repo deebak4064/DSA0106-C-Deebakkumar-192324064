@@ -1,0 +1,66 @@
+CLASS BranchOffice
+    PRIVATE:
+        STRING  branchID
+        STRING  branchName
+        REAL    currentBalance
+        STATIC REAL    totalVaultReserves       // one copy shared by all branches
+        STATIC INTEGER totalBranchesActive
+
+    PUBLIC:
+        CONSTRUCTOR BranchOffice(STRING id, STRING name, REAL openingDeposit)
+            branchID       ← id
+            branchName     ← name
+            currentBalance ← openingDeposit
+            totalVaultReserves  ← totalVaultReserves + openingDeposit
+            totalBranchesActive ← totalBranchesActive + 1
+        ENDCONSTRUCTOR
+
+        METHOD Deposit(REAL amount)
+            currentBalance     ← currentBalance + amount
+            totalVaultReserves ← totalVaultReserves + amount
+            PRINT branchID, " deposited $", amount, " -> branch balance $", currentBalance
+        ENDMETHOD
+
+        METHOD Withdraw(REAL amount) RETURNS BOOLEAN
+            IF amount > 0.0 AND amount <= currentBalance THEN
+                currentBalance     ← currentBalance - amount
+                totalVaultReserves ← totalVaultReserves - amount
+                PRINT branchID, " withdrew $", amount, " -> branch balance $", currentBalance
+                RETURN TRUE
+            ELSE
+                PRINT branchID, " withdrawal of $", amount, " DECLINED (insufficient funds)"
+                RETURN FALSE
+            ENDIF
+        ENDMETHOD
+
+        STATIC METHOD GetVaultSummary()          // no object, no THIS
+            PRINT "Branches active: ", totalBranchesActive,
+                  " | Vault reserves: $", totalVaultReserves
+        ENDMETHOD
+
+        STATIC METHOD GetGlobalLiquidityRatio(REAL targetReserve) RETURNS REAL
+            IF targetReserve <= 0.0 THEN
+                RETURN 0.0                       // guard against division by zero
+            ENDIF
+            RETURN totalVaultReserves / targetReserve
+        ENDMETHOD
+ENDCLASS
+
+// File-scope definitions: allocate and initialise the static attributes once
+REAL    BranchOffice::totalVaultReserves  ← 0.0
+INTEGER BranchOffice::totalBranchesActive ← 0
+
+BEGIN Main
+    BranchOffice::GetVaultSummary()
+    BranchOffice branch1 ← NEW BranchOffice("BR001", "Chennai Central", 500000.00)
+    BranchOffice branch2 ← NEW BranchOffice("BR002", "Coimbatore North", 300000.00)
+    BranchOffice::GetVaultSummary()
+
+    branch1.Deposit(150000.00)
+    branch2.Withdraw(50000.00)
+    branch2.Withdraw(400000.00)                  // exceeds branch balance
+
+    BranchOffice::GetVaultSummary()
+    PRINT "Liquidity ratio (target $1000000.00): ",
+          BranchOffice::GetGlobalLiquidityRatio(1000000.00)
+END

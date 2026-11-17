@@ -1,0 +1,38 @@
+// ---------- Inline helper ----------
+INLINE FUNCTION FormatPrefix(CONST REF STRING prefixTag) RETURNS STRING
+    RETURN "[" + prefixTag + "] "
+ENDFUNCTION
+
+// ---------- Overload 1: (STRING) ----------
+FUNCTION LogEvent(CONST REF STRING message)
+    PRINT FormatPrefix("INFO") + message
+ENDFUNCTION
+
+// ---------- Overload 2: (STRING, INTEGER [, STRING]) ----------
+// severityLevel has NO default (see design note); timestamp keeps its default
+FUNCTION LogEvent(CONST REF STRING message, INTEGER severityLevel,
+                  CONST REF STRING timestamp = "00:00:00")
+    STRING severityText
+    CASE severityLevel OF
+        1: severityText ← "LOW"
+        2: severityText ← "MEDIUM"
+        3: severityText ← "CRITICAL"
+        OTHERWISE: severityText ← "UNKNOWN"
+    ENDCASE
+    PRINT FormatPrefix(severityText) + "@ " + timestamp + " : " + message
+ENDFUNCTION
+
+// ---------- Overload 3: (INTEGER, STRING) ----------
+FUNCTION LogEvent(INTEGER errorCode, CONST REF STRING systemModule)
+    STRING hexCode ← TO_HEX_UPPERCASE(errorCode)
+    PRINT FormatPrefix("HARDWARE_FAULT") + "Module: " + systemModule
+          + " -> Error Code: 0x" + hexCode
+ENDFUNCTION
+
+// ---------- Client code ----------
+BEGIN Main
+    LogEvent("System boot complete")                         // 1 argument
+    LogEvent("Coolant pressure dropping", 2)                 // 2 arguments
+    LogEvent("Spindle motor stalled", 3, "14:32:07")         // 3 arguments
+    LogEvent(4660, "ACTUATOR_CTRL")                          // (INTEGER, STRING)
+END

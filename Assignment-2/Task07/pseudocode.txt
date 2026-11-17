@@ -1,0 +1,89 @@
+// ---------- Class specification: declarations only ----------
+CLASS Matrix2D
+    PRIVATE:
+        ARRAY grid[3][3] OF REAL
+
+    PUBLIC:
+        METHOD Initialize()
+        METHOD SetElement(INTEGER row, INTEGER col, REAL value) RETURNS BOOLEAN
+        METHOD GetElement(INTEGER row, INTEGER col) RETURNS REAL
+        METHOD Display()
+        FRIEND FUNCTION ComputeCrossTrace(Matrix2D A, Matrix2D B) RETURNS REAL
+ENDCLASS
+
+// ---------- Member functions defined outside the class ----------
+METHOD Matrix2D::Initialize()
+    INTEGER r, c
+    FOR r ← 0 TO 2 STEP 1
+        FOR c ← 0 TO 2 STEP 1
+            grid[r][c] ← 0.0
+        ENDFOR
+    ENDFOR
+ENDMETHOD
+
+METHOD Matrix2D::SetElement(INTEGER row, INTEGER col, REAL value) RETURNS BOOLEAN
+    IF row < 0 OR row >= 3 OR col < 0 OR col >= 3 THEN
+        PRINT "Error: index (", row, ", ", col, ") out of bounds"
+        RETURN FALSE
+    ENDIF
+    grid[row][col] ← value
+    RETURN TRUE
+ENDMETHOD
+
+METHOD Matrix2D::GetElement(INTEGER row, INTEGER col) RETURNS REAL
+    IF row < 0 OR row >= 3 OR col < 0 OR col >= 3 THEN
+        PRINT "Error: index (", row, ", ", col, ") out of bounds"
+        RETURN 0.0
+    ENDIF
+    RETURN grid[row][col]
+ENDMETHOD
+
+METHOD Matrix2D::Display()
+    INTEGER r, c
+    FOR r ← 0 TO 2 STEP 1
+        FOR c ← 0 TO 2 STEP 1
+            PRINT grid[r][c] WITH WIDTH 6        // same line
+        ENDFOR
+        PRINT NEWLINE
+    ENDFOR
+ENDMETHOD
+
+// ---------- Friend function: NOT a member, so no Matrix2D:: prefix ----------
+FUNCTION ComputeCrossTrace(Matrix2D A, Matrix2D B) RETURNS REAL
+    REAL    sum ← 0.0
+    REAL    term
+    INTEGER i
+    FOR i ← 0 TO 2 STEP 1
+        term ← A.grid[i][i] * B.grid[i][i]      // direct private access
+        sum  ← sum + term
+        PRINT "i=", i, ": ", A.grid[i][i], " x ", B.grid[i][i],
+              " = ", term, ", running sum = ", sum
+    ENDFOR
+    RETURN sum
+ENDFUNCTION
+
+BEGIN Main
+    ARRAY a[3][3] OF REAL ← {{2, 0, 1}, {3, 4, 0}, {0, 5, 6}}
+    ARRAY b[3][3] OF REAL ← {{1, 2, 0}, {0, 3, 4}, {7, 0, 5}}
+    Matrix2D A, B
+    INTEGER r, c
+    REAL result
+
+    A.Initialize()
+    B.Initialize()
+    FOR r ← 0 TO 2 STEP 1
+        FOR c ← 0 TO 2 STEP 1
+            A.SetElement(r, c, a[r][c])
+            B.SetElement(r, c, b[r][c])
+        ENDFOR
+    ENDFOR
+    A.SetElement(3, 0, 9.0)                      // bounds-validation test
+
+    PRINT "Matrix A:"
+    A.Display()
+    PRINT "Matrix B:"
+    B.Display()
+    PRINT "A.GetElement(1, 1) = ", A.GetElement(1, 1)
+    result ← ComputeCrossTrace(A, B)             // called as a free function
+    PRINT "Cross-trace (diagonal dot product) = ", result
+END

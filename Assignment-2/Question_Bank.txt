@@ -1,0 +1,379 @@
+UNIT II: Functions and Classes & Objects in C++
+Question Bank: Debugging & Pseudo-Code Formulation (Questions Only)
+
+1. Syllabus & Topic Scope
+• The Main Function: Signatures (int main(), int main(int argc, char* argv[])), return codes, execution lifecycle.
+• Function Prototyping: Declaration vs. definition, parameter lists, type safety.
+• Call by Reference: Syntax using references (&), memory alias semantics, avoiding copy overhead.
+• Return by Reference: Returning lvalues, lvalue assignment (func() = val), risks of dangling references to local stack frames.
+• Inline Functions: Syntax, compiler expansion heuristics, inline member functions, limitations (loops, recursion, static variables).
+• Default Arguments: Placement in declarations, trailing argument rule, avoiding redeclaration conflicts.
+• Function Overloading: Signature differentiation (types, count of parameters), resolution mechanics, ambiguity traps caused by default arguments and implicit type conversions.
+• Specifying a Class & Member Functions: Class anatomy, access specifiers (private, public, protected), defining member functions inside vs. outside class using scope resolution (::).
+• Arrays within a Class: Internal buffer storage, bounds containment, member methods manipulating internal arrays.
+• Static Member Functions & Static Data Members: Class-level storage, external definition requirement, invocation via class scope (Class::Function()), absence of this pointer in static member functions.
+• Arrays of Objects: Multi-instance allocation, dependency on default constructors, indexed manipulation.
+• Friendly Functions: The friend keyword, granting non-member access to private/protected state, friend functions as bridges between classes.
+
+2. Assessment Instructions & Rules ("How to Do & What to Do")
+A. Instructions for Debugging Questions
+When debugging functions, classes, and object interactions in C++, apply the following diagnostic methodology:
+1. Analyze Lifetime & Scope:
+• Inspect functions returning by reference (Type&). Verify whether the returned object resides in the caller's stack frame, heap memory, or static storage. If it returns a local automatic stack variable, flag it as a Dangling Reference causing Undefined Behavior.
+2. Inspect Static Member Constraints:
+• For static data members: Check if the member is only declared inside the class header or also defined and initialized at file scope outside the class. (Missing file-scope definition causes a Linker Error).
+• For static member functions: Verify whether they attempt to access instance variables (this->member) or invoke non-static member functions without an explicit object instance.
+3. Verify Overload Resolution & Defaults:
+• Check whether default arguments cause two function signatures to become indistinguishable when called with fewer arguments (ambiguity).
+4. Verify Object Array Initializability:
+• If an array of objects is declared (e.g., Class arr[10];), verify whether the class possesses an accessible Default Constructor (zero arguments).
+5. Inspect Friend Function Mechanics:
+• Remember that a friend function is NOT a member function. It does not have an implicit this pointer, cannot be invoked via obj.friendFunc(), and must access private members through explicitly passed object references.
+6. Required Output Format for Each Problem:
+• State exact line numbers and defect classification.
+• Provide an in-depth root cause analysis referencing C++ standards.
+• Provide the clean, compilable corrected code snippet.
+• Provide the dry run and predicted terminal output.
+B. Instructions for Pseudo-Code Writing Questions
+When formulating pseudo-code for Object-Oriented designs:
+1. Structural Class Syntax:
+• Clearly delineate class sections: CLASS <Name>, PRIVATE:, PUBLIC:, ENDCLASS.
+• Distinguish between instance attributes and STATIC class attributes.
+• Indicate parameter passing mechanisms explicitly: by value vs. by reference (REF).
+2. Method Definitions:
+• Show constructor declarations (CONSTRUCTOR(...)), instance methods (METHOD ...), and class methods (STATIC METHOD ...).
+• When demonstrating member functions defined outside the class, use scope notation (METHOD ClassName::MethodName()).
+3. Traceability:
+• Include a dry-run trace table tracking variable and object state across method calls.
+
+3. Section A: Debugging Questions (5 Problems)
+
+Question 1: Dangling Reference in Return-by-Reference
+Topic: Return by Reference, Scope, Activation Records
+Problem Statement
+A developer writes a utility function designed to return the scaled maximum of two integers by reference. Another function returns an element of an array passed by reference. While the array function works as intended, calling the scaled maximum function leads to segmentation faults or corrupted garbage values when accessed later in main().
+Buggy Code
+#include <iostream>
+
+// Line 4: Utility to scale and return the larger value
+int& getMaximumScaled(int a, int b, int scaleFactor) {
+int maxVal = (a > b) ? a : b;
+int result = maxVal * scaleFactor;
+return result; // Warning / Undefined Behavior!
+}
+
+// Line 11: Array element modifier
+int& getArrayElement(int arr[], int index) {
+return arr[index];
+}
+
+int main() {
+int x = 10, y = 20;
+
+// Line 19: Receiving the reference
+int &danglingRef = getMaximumScaled(x, y, 2);
+std::cout << "Scaled Max: " << danglingRef << std::endl;
+
+int data[3] = {100, 200, 300};
+getArrayElement(data, 1) = 999; // Lvalue assignment
+std::cout << "Updated Array[1]: " << data[1] << std::endl;
+
+// Line 27: Reading reference after subsequent stack calls
+std::cout << "Dangling Ref Value: " << danglingRef << std::endl;
+return 0;
+}
+
+Student Tasks
+1. Explain what happens to the memory location of result on Line 8 after getMaximumScaled finishes execution. Why does danglingRef exhibit undefined behavior on Line 27?
+2. Why is getArrayElement on Line 11 safe for return-by-reference, whereas getMaximumScaled is unsafe?
+3. Rewrite the code using proper return semantics.
+4. Show the dry-run and expected output of the corrected code.
+
+Question 2: Static Data Member Linkage & Member Function Scoping
+Topic: Static Data Members, Static Member Functions, Scope Resolution
+Problem Statement
+A banking software module tracks total branch reserves using a static variable in class BankAccount. The developer creates a static member function displayAudit() to inspect total reserves, but also attempts to print individual account holder information from inside the static method. The code fails with both compilation and linker errors.
+Buggy Code
+#include <iostream>
+#include <string>
+
+class BankAccount {
+private:
+std::string accHolder;
+double balance;
+static double totalBankReserves; // Line 8: Static data member
+
+public:
+BankAccount(std::string name, double initialDeposit) {
+accHolder = name;
+balance = initialDeposit;
+totalBankReserves += initialDeposit;
+}
+
+// Line 17: Static member function
+static void displayAudit() {
+std::cout << "Total Reserves in Vault: $" << totalBankReserves << std::endl;
+std::cout << "Account Holder: " << accHolder << std::endl; // Error!
+}
+};
+
+int main() {
+BankAccount acc1("Alice", 5000.0);
+BankAccount acc2("Bob", 3000.0);
+
+BankAccount::displayAudit();
+return 0;
+}
+
+Student Tasks
+1. Identify the Linker Error (undefined reference to BankAccount::totalBankReserves) that occurs during the build process. Explain why declaring a static member variable inside a class is insufficient to allocate memory.
+2. Identify the Compilation Error on Line 19. Explain why static member functions cannot access non-static member variables like accHolder.
+3. Provide the complete corrected C++ code, including the necessary external definition of the static data member and separated display methods.
+4. Show the console output of the corrected program.
+
+Question 3: Function Overload Ambiguity via Default Arguments
+Topic: Function Overloading, Default Arguments
+Problem Statement
+A geometric calculation library provides overloaded functions to calculate the volume of boxes and cylinders. The author provides default arguments for cuboids to allow flexible dimensions. However, invoking computeVolume with a single argument triggers a compilation failure due to ambiguity.
+Buggy Code
+#include <iostream>
+
+// Overload 1: Cuboid volume with default dimensions
+double computeVolume(double length, double width = 1.0, double height = 1.0) {
+return length * width * height;
+}
+
+// Overload 2: Dedicated function for cube volume
+double computeVolume(double side) {
+return side * side * side;
+}
+
+// Overload 3: Cylinder volume calculation
+double computeVolume(double radius, double height) {
+return 3.14159 * radius * radius * height;
+}
+
+int main() {
+// Line 19: Call with 1 argument fails compilation
+std::cout << "Volume: " << computeVolume(5.0) << std::endl;
+
+// Line 22: Call with 2 arguments
+std::cout << "Cylinder: " << computeVolume(3.0, 7.0) << std::endl;
+return 0;
+}
+
+Student Tasks
+1. Explain why the compiler generates error: call of overloaded 'computeVolume(double)' is ambiguous on Line 19. Which overloaded signatures are in conflict, and why?
+2. Analyze the call on Line 22 (computeVolume(3.0, 7.0)). Does it also conflict with Overload 1? Explain the matching process.
+3. Refactor the function signatures to eliminate ambiguity completely while retaining flexible volume calculations.
+4. Provide the corrected C++ code and the resulting output.
+
+Question 4: Array of Objects Missing Default Constructor
+Topic: Arrays of Objects, Constructors, Class Specification
+Problem Statement
+A student records database creates an array of Student objects. The author defines a parameterized constructor to assign roll numbers and names during object creation. However, declaring the array Student batch[3]; causes the compiler to reject the program.
+Buggy Code
+#include <iostream>
+#include <string>
+
+class Student {
+private:
+int rollNumber;
+std::string name;
+
+public:
+// Parameterized constructor defined by programmer
+Student(int r, std::string n) {
+rollNumber = r;
+name = n;
+}
+
+void display() const {
+std::cout << "Roll: " << rollNumber << ", Name: " << name << std::endl;
+}
+};
+
+int main() {
+// Line 20: Array of 3 Student objects
+Student batch[3]; // Compilation Error!
+
+batch[0] = Student(101, "Aarav");
+batch[1] = Student(102, "Bhavna");
+batch[2] = Student(103, "Chirag");
+
+for (int i = 0; i < 3; ++i) {
+batch[i].display();
+}
+return 0;
+}
+
+Student Tasks
+1. Explain the C++ rule regarding automatic synthesis of the default constructor when a parameterized constructor is defined. Why does Student batch[3]; fail to compile?
+2. Describe two different techniques to solve this problem:
+• Technique A: Supplying an explicit default constructor.
+• Technique B: Initializing array elements using an array initializer list of parameterized constructors.
+3. Write the corrected C++ program using Technique A.
+4. Show the verified console output.
+
+Question 5: Friend Function Declaration & Scope Resolution Flaws
+Topic: Friendly Functions, Forward Declarations, Member vs. Non-Member
+Problem Statement
+Two classes Engine and TelemetryAuditor interact in a vehicle diagnostic system. The developer attempts to create a non-member friend function inspectDiagnostics to inspect private variables from both classes. The code fails to compile due to missing forward declarations, unqualified member accesses, and illegal member invocation syntax.
+Buggy Code
+#include <iostream>
+
+// Line 4: Incomplete forward declarations
+class Engine;
+
+class Engine {
+private:
+int temperature;
+int rpm;
+
+public:
+Engine(int t, int r) : temperature(t), rpm(r) {}
+
+// Declaring friend function
+friend void inspectDiagnostics(Engine e, TelemetryAuditor a);
+};
+
+class TelemetryAuditor {
+private:
+int alertThreshold;
+
+public:
+TelemetryAuditor(int threshold) : alertThreshold(threshold) {}
+
+friend void inspectDiagnostics(Engine e, TelemetryAuditor a);
+};
+
+// Line 27: Friend function implementation
+void inspectDiagnostics(Engine e, TelemetryAuditor a) {
+// Line 29: Unqualified member access error
+if (e.temperature > alertThreshold) {
+std::cout << "Warning: Engine overheat!" << std::endl;
+} else {
+std::cout << "Engine operating nominally at " << e.rpm << " RPM." << std::endl;
+}
+}
+
+int main() {
+Engine v8(105, 3200);
+TelemetryAuditor audit(100);
+
+// Line 41: Invoking friend function as a member function
+v8.inspectDiagnostics(v8, audit);
+return 0;
+}
+
+Student Tasks
+1. Explain why alertThreshold on Line 29 cannot be accessed directly without object qualification inside inspectDiagnostics. Does a friend function possess a this pointer?
+2. Explain why v8.inspectDiagnostics(v8, audit) on Line 41 fails compilation. What is the correct syntax for invoking a friend function?
+3. Identify why a forward declaration of TelemetryAuditor is required before class Engine is declared.
+4. Provide the fully corrected, compilable code snippet.
+
+4. Section B: Pseudo-Code Writing Questions (5 Problems)
+
+Question 1: Corporate Vault Management with Static Data & Functions
+Topic: Static Data Members, Static Member Functions, Encapsulation
+Scenario
+Design the pseudo-code for a banking branch reserve management system. The system models individual bank branches and maintains consolidated enterprise reserves at the corporate level.
+Functional Requirements
+1. Class BranchOffice:
+• Private Instance Attributes: branchID (STRING), branchName (STRING), currentBalance (REAL).
+• Private Static Attributes: totalVaultReserves (REAL, initialized to 0.0), totalBranchesActive (INTEGER, initialized to 0).
+2. Instance Methods:
+• Constructor(id, name, openingDeposit): Sets instance fields, increments totalVaultReserves by openingDeposit, and increments totalBranchesActive by 1.
+• Deposit(amount): Adds funds to both currentBalance and totalVaultReserves.
+• Withdraw(amount) RETURNS BOOLEAN: Checks if sufficient branch funds exist. If valid, deducts from both currentBalance and totalVaultReserves, returning TRUE; otherwise returns FALSE.
+3. Static Methods:
+• GetVaultSummary(): Outputs total branches active and aggregate reserves across all branches.
+• GetGlobalLiquidityRatio(targetReserve AS REAL) RETURNS REAL: Returns $\frac{\text{totalVaultReserves}}{\text{targetReserve}}$.
+Student Tasks
+1. Write the formal structured pseudo-code defining the BranchOffice class and an executable driver routine Main.
+2. Construct a trace table showing initial state, transactions on two distinct branches (Branch1 depositing \$150k, Branch2 withdrawing \$50k), and the resulting static vault reserve values.
+
+Question 2: Matrix Mathematical Engine with Arrays in Class & Friend Dot-Product
+Topic: Arrays within a Class, Scope Resolution ::, Friend Functions
+Scenario
+Design a mathematical class Matrix2D that encapsulates a $3 \times 3$ grid of real numbers. Define member methods outside the class using scope resolution syntax. Implement an external FRIEND FUNCTION named ComputeCrossTrace that calculates the scalar dot product of the primary diagonals of two distinct matrix objects.
+Functional Requirements
+1. Class Matrix2D:
+• Private Attributes: grid (ARRAY[3][3] OF REAL).
+• Public Declarations:
+• Initialize(): Fills matrix with zeros.
+• SetElement(row, col, value): Stores value with $0 \le \text{row}, \text{col} < 3$ bounds validation.
+• GetElement(row, col) RETURNS REAL: Retrieves value with bounds validation.
+• Display(): Prints matrix in $3 \times 3$ grid format.
+• FRIEND FUNCTION ComputeCrossTrace(Matrix2D A, Matrix2D B) RETURNS REAL.
+2. Implementation Outside Class:
+• Define all member methods outside the class using the scope resolution operator Matrix2D::MethodName().
+3. Friend Function Logic:
+• Directly access private grid arrays of both objects A and B without getters.
+• Compute $\sum_{i=0}^{2} (A.\text{grid}[i][i] \times B.\text{grid}[i][i])$.
+Student Tasks
+1. Write the structured pseudo-code for the class definition, outside member function implementations, and the friend function.
+2. Trace the friend function calculation for two sample matrices with diagonal elements $A_{\text{diag}} = [2, 4, 6]$ and $B_{\text{diag}} = [1, 3, 5]$.
+
+Question 3: Student Academic Roster via Array of Objects
+Topic: Arrays of Objects, Member Functions, Sorting Objects
+Scenario
+Develop an academic grade management system using an Array of Objects. Each StudentRecord object encapsulates student information, subject scores, and grade computation.
+Functional Requirements
+1. Class StudentRecord:
+• Private Attributes: rollNo (INTEGER), studentName (STRING), marks (ARRAY[3] OF REAL), percentage (REAL), grade (CHARACTER).
+• Methods:
+• Default constructor: Sets fields to default/blank values.
+• ReadData(r, name, m1, m2, m3): Populates fields and calls internal private method CalculateResult().
+• CalculateResult(): Computes percentage as average of 3 subjects and assigns grade:
+• $\ge 85\%$: 'A' | $\ge 70\%$: 'B' | $\ge 50\%$: 'C' | $< 50\%$: 'F'.
+• GetPercentage() RETURNS REAL: Returns calculated percentage.
+• Display(): Prints student summary.
+2. Driver Program:
+• Instantiate an array of 3 StudentRecord objects.
+• Populate with sample student records.
+• Sort the array of objects in descending order of percentage using Bubble Sort.
+• Display the sorted rank list.
+Student Tasks
+1. Write the structured pseudo-code for the StudentRecord class and sorting driver.
+2. Provide a dry-run trace table showing the sorting passes and object swaps based on percentage.
+
+Question 4: Flexible Logger with Overloaded Functions & Inline Helpers
+Topic: Function Overloading, Default Arguments, Inline Functions
+Scenario
+Create an industrial embedded logging engine featuring Function Overloading, Default Arguments, and Inline Helper Functions for high-throughput diagnostic output.
+Functional Requirements
+1. Inline Helper Function:
+• INLINE FUNCTION FormatPrefix(prefixTag AS STRING) RETURNS STRING: Returns formatted tag "[TAG] ".
+2. Overloaded Logging Functions:
+• Overload 1: LogEvent(message AS STRING): Formats and logs general informational message with default prefix "INFO".
+• Overload 2: LogEvent(message AS STRING, severityLevel AS INTEGER = 1, timestamp AS STRING = "00:00:00"):
+• Uses default arguments for severity and timestamp.
+• Translates severity integer (1: "LOW", 2: "MEDIUM", 3: "CRITICAL").
+• Formats output: "[SEVERITY] @ TIMESTAMP : MESSAGE".
+• Overload 3: LogEvent(errorCode AS INTEGER, systemModule AS STRING):
+• Outputs hardware fault diagnostic: "[HARDWARE_FAULT] Module: SYSTEM_MODULE -> Error Code: 0xHEX".
+Student Tasks
+1. Write the structured pseudo-code showing all function signatures and inline definitions.
+2. Demonstrate how client code calls LogEvent with 1, 2, and 3 arguments, and trace how default arguments are resolved.
+
+Question 5: Hardware Register Bank with Return-by-Reference
+Topic: Return by Reference, Arrays within a Class, Lvalue Semantics
+Scenario
+Write pseudo-code for a microcontroller hardware buffer class RegisterBank that allows client code to read and directly overwrite internal hardware register bytes using lvalue assignment through a member function returning by reference.
+Functional Requirements
+1. Class RegisterBank:
+• Private Attributes: registers (ARRAY[8] OF INTEGER), errorSink (INTEGER).
+• Constructor: Initializes all 8 registers to 0 and errorSink to -1.
+• Method GetRegister(index AS INTEGER) RETURNS REF INTEGER:
+• Bounds check: $0 \le \text{index} < 8$.
+• If valid, returns an lvalue reference to registers[index].
+• If out-of-bounds, emits an alert and returns reference to errorSink to prevent illegal memory modification.
+• Method DisplayState(): Dumps current values of all 8 registers in hexadecimal format.
+2. Client Program:
+• Use direct lvalue assignment: bank.GetRegister(0) <- 170, bank.GetRegister(1) <- 255.
+• Read through reference: readVal <- bank.GetRegister(0).
+• Test an out-of-bounds assignment attempt: bank.GetRegister(10) <- 999.
+Student Tasks
+1. Write the formal structured pseudo-code for RegisterBank and driver program.
+2. Explain the mechanism of return-by-reference that enables a function call to appear on the left side of an assignment operator (func() = val).

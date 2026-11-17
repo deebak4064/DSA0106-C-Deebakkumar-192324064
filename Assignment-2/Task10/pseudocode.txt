@@ -1,0 +1,43 @@
+CLASS RegisterBank
+    PRIVATE:
+        ARRAY registers[8] OF INTEGER
+        INTEGER errorSink                        // safe target for bad indices
+
+    PUBLIC:
+        CONSTRUCTOR RegisterBank()
+            INTEGER i
+            FOR i ← 0 TO 7 STEP 1
+                registers[i] ← 0
+            ENDFOR
+            errorSink ← -1
+        ENDCONSTRUCTOR
+
+        METHOD GetRegister(INTEGER index) RETURNS REF INTEGER
+            IF index >= 0 AND index < 8 THEN
+                RETURN REF registers[index]      // alias to a member element
+            ENDIF
+            PRINT "ALERT: index ", index, " out of bounds; write redirected to errorSink"
+            errorSink ← -1                       // clear any stale value
+            RETURN REF errorSink
+        ENDMETHOD
+
+        METHOD DisplayState()
+            INTEGER i
+            FOR i ← 0 TO 7 STEP 1
+                PRINT "R", i, "=0x", TO_HEX_2DIGITS(registers[i])
+            ENDFOR
+            PRINT "errorSink = ", errorSink
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    RegisterBank bank ← NEW RegisterBank()
+    INTEGER readVal
+
+    bank.GetRegister(0) ← 170                    // lvalue assignment (0xAA)
+    bank.GetRegister(1) ← 255                    // lvalue assignment (0xFF)
+    readVal ← bank.GetRegister(0)                // read through the reference
+    PRINT "readVal = ", readVal
+    bank.GetRegister(10) ← 999                   // out of bounds: goes to errorSink
+    bank.DisplayState()
+END
