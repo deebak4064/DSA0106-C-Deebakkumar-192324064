@@ -1,0 +1,57 @@
+CLASS Complex
+    PRIVATE:
+        REAL real
+        REAL imag
+
+    PUBLIC:
+        CONSTRUCTOR()                            // 0 + 0i
+            real ← 0.0
+            imag ← 0.0
+        ENDCONSTRUCTOR
+
+        CONSTRUCTOR(r AS REAL)                   // r + 0i
+            real ← r
+            imag ← 0.0
+        ENDCONSTRUCTOR
+
+        CONSTRUCTOR(r AS REAL, i AS REAL)        // r + ii
+            real ← r
+            imag ← i
+        ENDCONSTRUCTOR
+
+        OPERATOR +(CONST REF other AS Complex) RETURNS Complex
+            RETURN NEW Complex(real + other.real, imag + other.imag)
+        ENDOPERATOR
+
+        OPERATOR *(CONST REF other AS Complex) RETURNS Complex
+            REAL newReal ← real * other.real - imag * other.imag
+            REAL newImag ← real * other.imag + imag * other.real
+            RETURN NEW Complex(newReal, newImag)
+        ENDOPERATOR
+
+        OPERATOR ==(CONST REF other AS Complex) RETURNS BOOLEAN
+            CONSTANT REAL EPSILON ← 0.000000001      // tolerance for REAL comparison
+            RETURN ABS(real - other.real) < EPSILON AND ABS(imag - other.imag) < EPSILON
+        ENDOPERATOR
+
+        METHOD Display()
+            IF imag >= 0.0 THEN
+                PRINT real, " + ", imag, "i"
+            ELSE
+                PRINT real, " - ", ABS(imag), "i"
+            ENDIF
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    Complex z0 ← NEW Complex()
+    Complex z1 ← NEW Complex(5.0)
+    Complex c1 ← NEW Complex(3.0, 2.0)
+    Complex c2 ← NEW Complex(1.0, 4.0)
+    z0.Display()
+    z1.Display()
+    (c1 + c2).Display()
+    (c1 * c2).Display()
+    PRINT "C1 == C2    : ", c1 == c2
+    PRINT "C1 == (3,2) : ", c1 == NEW Complex(3.0, 2.0)
+END

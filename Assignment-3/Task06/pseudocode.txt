@@ -1,0 +1,68 @@
+CLASS DynStr
+    PRIVATE:
+        POINTER TO CHARACTER dataPtr
+        INTEGER charCount
+
+    PUBLIC:
+        CONSTRUCTOR(sourceString AS STRING)
+            INTEGER i
+            charCount ← LENGTH(sourceString)
+            dataPtr ← ALLOCATE ARRAY[charCount + 1] OF CHARACTER
+            FOR i ← 0 TO charCount - 1 STEP 1
+                dataPtr[i] ← sourceString[i]
+            ENDFOR
+            dataPtr[charCount] ← NULL_CHAR           // terminator
+            PRINT "[alloc] ", charCount + 1, " bytes for ", dataPtr
+        ENDCONSTRUCTOR
+
+        COPY CONSTRUCTOR(CONST REF other AS DynStr)  // deep copy
+            INTEGER i
+            charCount ← other.charCount
+            dataPtr ← ALLOCATE ARRAY[charCount + 1] OF CHARACTER   // fresh buffer
+            FOR i ← 0 TO charCount STEP 1                         // includes terminator
+                dataPtr[i] ← other.dataPtr[i]
+            ENDFOR
+            PRINT "[deep copy] ", charCount + 1, " bytes for ", dataPtr
+        ENDCONSTRUCTOR
+
+        DESTRUCTOR()
+            PRINT "[free] ", dataPtr
+            DEALLOCATE dataPtr
+            dataPtr ← NULL
+        ENDDESTRUCTOR
+
+        OPERATOR +(CONST REF rhs AS DynStr) RETURNS DynStr
+            INTEGER total, i, j
+            POINTER TO CHARACTER temp
+            total ← charCount + rhs.charCount
+            temp ← ALLOCATE ARRAY[total + 1] OF CHARACTER
+            PRINT "[temp] ", total + 1, " bytes for concatenation"
+            FOR i ← 0 TO charCount - 1 STEP 1        // copy left operand
+                temp[i] ← dataPtr[i]
+            ENDFOR
+            FOR j ← 0 TO rhs.charCount - 1 STEP 1    // append right operand
+                temp[charCount + j] ← rhs.dataPtr[j]
+            ENDFOR
+            temp[total] ← NULL_CHAR
+            DynStr result ← NEW DynStr(temp)         // constructor allocates its own buffer
+            DEALLOCATE temp
+            PRINT "[temp freed]"
+            RETURN result
+        ENDOPERATOR
+
+        METHOD Display()
+            PRINT dataPtr, " (", charCount, " chars)"
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    DynStr strA ← NEW DynStr("Hello ")
+    DynStr strB ← NEW DynStr("World!")
+    DynStr strC ← strA + strB                    // OPERATOR + on strA with rhs = strB
+    PRINT "strC = "
+    strC.Display()
+    DynStr strD ← strC                           // COPY CONSTRUCTOR (deep copy)
+    PRINT "strD = "
+    strD.Display()
+    // End of Main: destructors run for strD, strC, strB, strA (reverse order)
+END

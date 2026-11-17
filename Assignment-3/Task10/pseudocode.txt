@@ -1,0 +1,47 @@
+CLASS Vector2D
+    PRIVATE:
+        REAL x
+        REAL y
+
+    PUBLIC:
+        CONSTRUCTOR(xVal AS REAL = 0.0, yVal AS REAL = 0.0)
+            x ← xVal
+            y ← yVal
+        ENDCONSTRUCTOR
+
+        OPERATOR ++() RETURNS REF Vector2D            // prefix ++v
+            x ← x + 1.0
+            y ← y + 1.0
+            RETURN REF THIS
+        ENDOPERATOR
+
+        OPERATOR ++(dummy AS INTEGER) RETURNS Vector2D  // postfix v++
+            Vector2D snapshot ← THIS                  // copy of current state
+            x ← x + 1.0
+            y ← y + 1.0
+            RETURN snapshot                           // by value
+        ENDOPERATOR
+
+        OPERATOR +=(CONST REF rhs AS Vector2D) RETURNS REF Vector2D
+            x ← x + rhs.x
+            y ← y + rhs.y
+            RETURN REF THIS
+        ENDOPERATOR
+
+        METHOD Display(name AS STRING)
+            PRINT name, " = (", x, ", ", y, ")"
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    Vector2D v1 ← NEW Vector2D(5.0, 8.0)
+    Vector2D v2 ← ++v1                           // prefix
+    v1.Display("v1")
+    v2.Display("v2")
+    Vector2D v3 ← v1++                           // postfix
+    v1.Display("v1")
+    v2.Display("v2")
+    v3.Display("v3")
+    v1 += v2                                     // compound assignment
+    v1.Display("v1")
+END

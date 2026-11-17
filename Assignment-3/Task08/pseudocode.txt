@@ -1,0 +1,53 @@
+CLASS Currency
+    PRIVATE:
+        INTEGER dollars
+        INTEGER cents
+
+        METHOD Normalize()                       // private helper
+            INTEGER totalCents ← dollars * 100 + cents
+            dollars ← totalCents DIV 100             // truncates toward zero
+            cents   ← totalCents MOD 100             // same sign as totalCents
+        ENDMETHOD
+
+    PUBLIC:
+        CONSTRUCTOR(d AS INTEGER = 0, c AS INTEGER = 0)
+            dollars ← d
+            cents   ← c
+            Normalize()
+        ENDCONSTRUCTOR
+
+        OPERATOR -() RETURNS Currency            // unary negation
+            RETURN NEW Currency(-dollars, -cents)
+        ENDOPERATOR
+
+        FRIEND OPERATOR <<(REF outStream AS OSTREAM, CONST REF cur AS Currency) RETURNS REF OSTREAM
+        FRIEND OPERATOR >>(REF inStream AS ISTREAM, REF cur AS Currency) RETURNS REF ISTREAM
+ENDCLASS
+
+// ---------- Friend operators (non-members) ----------
+OPERATOR <<(REF outStream AS OSTREAM, CONST REF cur AS Currency) RETURNS REF OSTREAM
+    IF cur.dollars < 0 OR cur.cents < 0 THEN
+        WRITE "-" TO outStream
+    ENDIF
+    WRITE "$", ABS(cur.dollars), ".", ABS(cur.cents) AS 2 DIGITS WITH LEADING ZERO TO outStream
+    RETURN outStream                             // enables chaining
+ENDOPERATOR
+
+OPERATOR >>(REF inStream AS ISTREAM, REF cur AS Currency) RETURNS REF ISTREAM
+    READ cur.dollars, cur.cents FROM inStream
+    cur.Normalize()
+    RETURN inStream
+ENDOPERATOR
+
+BEGIN Main
+    Currency a ← NEW Currency(2, 150)
+    Currency b ← NEW Currency(5, -30)
+    Currency cur
+    PRINT "Currency(2, 150)  = ", a
+    PRINT "Currency(5, -30)  = ", b
+    PRINT "Enter dollars and cents: "
+    INPUT cur                                    // friend OPERATOR >>
+    PRINT "Normalized        = ", cur            // friend OPERATOR <<
+    PRINT "Negated (-cur)    = ", -cur
+    PRINT "Negated twice     = ", -(-cur)
+END

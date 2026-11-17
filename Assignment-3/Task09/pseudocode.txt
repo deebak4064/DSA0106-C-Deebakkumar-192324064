@@ -1,0 +1,85 @@
+CLASS Polynomial
+    PRIVATE:
+        INTEGER degree
+        POINTER TO REAL coeffArray               // coeffArray[k] = coefficient of x^k
+        REAL outOfRangeSink                      // safe target for bad indices
+
+    PUBLIC:
+        CONSTRUCTOR(deg AS INTEGER)
+            INTEGER i
+            degree ← deg
+            coeffArray ← ALLOCATE ARRAY[degree + 1] OF REAL
+            FOR i ← 0 TO degree STEP 1
+                coeffArray[i] ← 0.0
+            ENDFOR
+            outOfRangeSink ← 0.0
+        ENDCONSTRUCTOR
+
+        COPY CONSTRUCTOR(CONST REF other AS Polynomial)   // deep copy
+            INTEGER i
+            degree ← other.degree
+            coeffArray ← ALLOCATE ARRAY[degree + 1] OF REAL   // fresh heap array
+            FOR i ← 0 TO degree STEP 1
+                coeffArray[i] ← other.coeffArray[i]
+            ENDFOR
+            outOfRangeSink ← 0.0
+        ENDCONSTRUCTOR
+
+        DESTRUCTOR()
+            DEALLOCATE coeffArray
+            coeffArray ← NULL
+        ENDDESTRUCTOR
+
+        OPERATOR [](index AS INTEGER) RETURNS REF REAL
+            IF index < 0 OR index > degree THEN
+                PRINT "Error: index ", index, " outside 0..", degree
+                outOfRangeSink ← 0.0
+                RETURN REF outOfRangeSink
+            ENDIF
+            RETURN REF coeffArray[index]         // lvalue: readable and assignable
+        ENDOPERATOR
+
+        OPERATOR +(CONST REF rhs AS Polynomial) RETURNS Polynomial
+            INTEGER maxDeg, i
+            REAL a, b
+            IF degree > rhs.degree THEN
+                maxDeg ← degree
+            ELSE
+                maxDeg ← rhs.degree
+            ENDIF
+            Polynomial result ← NEW Polynomial(maxDeg)
+            FOR i ← 0 TO maxDeg STEP 1
+                IF i <= degree THEN a ← coeffArray[i] ELSE a ← 0.0 ENDIF
+                IF i <= rhs.degree THEN b ← rhs.coeffArray[i] ELSE b ← 0.0 ENDIF
+                result.coeffArray[i] ← a + b
+            ENDFOR
+            RETURN result
+        ENDOPERATOR
+
+        METHOD Display()                         // highest power first, skip zero terms
+            INTEGER i
+            FOR i ← degree TO 0 STEP -1
+                IF coeffArray[i] <> 0.0 THEN
+                    PRINT term coeffArray[i] x^i
+                ENDIF
+            ENDFOR
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    Polynomial p1 ← NEW Polynomial(2)
+    p1[2] ← 3.0
+    p1[1] ← 2.0
+    p1[0] ← 5.0                                  // P1(x) = 3x^2 + 2x + 5
+    Polynomial p2 ← NEW Polynomial(3)
+    p2[3] ← 4.0
+    p2[2] ← 1.0
+    p2[0] ← 7.0                                  // P2(x) = 4x^3 + x^2 + 7
+    Polynomial p3 ← p1 + p2
+    p3.Display()
+    Polynomial p4 ← p3                           // deep copy
+    p4[0] ← 99.0                                 // does not affect p3
+    p4.Display()
+    p3.Display()
+    p1[5] ← 1.0                                  // out-of-range test
+END
