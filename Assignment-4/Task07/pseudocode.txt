@@ -1,0 +1,74 @@
+ABSTRACT CLASS Employee
+    PROTECTED:
+        STRING employeeID
+        STRING name
+    PUBLIC:
+        CONSTRUCTOR(id AS STRING, n AS STRING)
+            employeeID ← id
+            name ← n
+        ENDCONSTRUCTOR
+        VIRTUAL DESTRUCTOR()                     // safe delete through Employee pointer
+        ENDDESTRUCTOR
+        ABSTRACT METHOD CalculatePay() RETURNS REAL   // pure virtual: no body
+        METHOD DisplayHeader()
+            PRINT employeeID, "  ", name
+        ENDMETHOD
+ENDCLASS
+
+CLASS SalariedEmployee EXTENDS Employee
+    PRIVATE:
+        REAL monthlySalary
+    PUBLIC:
+        CONSTRUCTOR(id AS STRING, n AS STRING, salary AS REAL) : BASE(id, n)
+            monthlySalary ← salary
+        ENDCONSTRUCTOR
+        OVERRIDE METHOD CalculatePay() RETURNS REAL
+            RETURN monthlySalary
+        ENDMETHOD
+ENDCLASS
+
+CLASS HourlyEmployee EXTENDS Employee
+    PRIVATE:
+        REAL hourlyWage
+        REAL hoursWorked
+    PUBLIC:
+        CONSTRUCTOR(id AS STRING, n AS STRING, wage AS REAL, hours AS REAL) : BASE(id, n)
+            hourlyWage ← wage
+            hoursWorked ← hours
+        ENDCONSTRUCTOR
+        OVERRIDE METHOD CalculatePay() RETURNS REAL
+            CONSTANT REAL REGULAR_LIMIT ← 40.0
+            CONSTANT REAL OVERTIME_RATE ← 1.5
+            REAL regularPay, overtimePay
+            IF hoursWorked <= REGULAR_LIMIT THEN
+                RETURN hourlyWage * hoursWorked
+            ENDIF
+            regularPay  ← hourlyWage * REGULAR_LIMIT
+            overtimePay ← hourlyWage * OVERTIME_RATE * (hoursWorked - REGULAR_LIMIT)
+            RETURN regularPay + overtimePay
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    CONSTANT INTEGER N ← 2
+    DECLARE staff AS POINTER TO ARRAY OF (POINTER TO Employee)
+    INTEGER i
+    REAL pay, totalDisbursement ← 0.0
+
+    staff ← ALLOCATE ARRAY[N] OF (POINTER TO Employee)
+    staff[0] ← NEW SalariedEmployee("E101", "Anita Sharma", 8500.00)
+    staff[1] ← NEW HourlyEmployee("E102", "Ravi Kumar", 50.00, 48.0)
+
+    FOR i ← 0 TO N - 1 STEP 1
+        pay ← staff[i]->CalculatePay()           // dynamic (late) binding
+        totalDisbursement ← totalDisbursement + pay
+        staff[i]->DisplayHeader()
+        PRINT " Pay: $", pay
+    ENDFOR
+    PRINT "Total disbursement: $", totalDisbursement
+
+    FOR i ← 0 TO N - 1 STEP 1
+        DELETE staff[i]                          // each object
+    ENDFOR
+    DEALLOCATE staff                             // the pointer array itself
+END

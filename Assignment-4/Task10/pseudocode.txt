@@ -1,0 +1,49 @@
+CLASS Product
+    PUBLIC:
+        STRING  sku
+        REAL    price
+        INTEGER stockCount
+        CONSTRUCTOR(s AS STRING, p AS REAL, stock AS INTEGER)
+            sku ← s
+            price ← p
+            stockCount ← stock
+        ENDCONSTRUCTOR
+        METHOD PrintProduct()
+            PRINT sku, "  $", price, "  stock ", stockCount, "  @ ", ADDRESS OF THIS
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    CONSTANT INTEGER N ← 3
+    DECLARE catalog AS ARRAY[N] OF (POINTER TO Product)
+    DECLARE temp AS POINTER TO Product
+    INTEGER pass, j, i
+    BOOLEAN swapped
+
+    catalog[0] ← NEW Product("LAPTOP", 1200.00, 15)
+    catalog[1] ← NEW Product("MOUSE", 25.00, 120)
+    catalog[2] ← NEW Product("MONITOR", 350.00, 40)
+
+    FOR pass ← 1 TO N - 1 STEP 1
+        swapped ← FALSE
+        FOR j ← 0 TO N - pass - 1 STEP 1
+            IF catalog[j]->price > catalog[j + 1]->price THEN   // compare via ->
+                temp           ← catalog[j]                     // swap POINTERS only:
+                catalog[j]     ← catalog[j + 1]                 // the Product objects
+                catalog[j + 1] ← temp                           // never move
+                swapped ← TRUE
+            ENDIF
+        ENDFOR
+        IF swapped = FALSE THEN
+            BREAK
+        ENDIF
+    ENDFOR
+
+    FOR i ← 0 TO N - 1 STEP 1
+        catalog[i]->PrintProduct()
+    ENDFOR
+    FOR i ← 0 TO N - 1 STEP 1
+        DELETE catalog[i]
+        catalog[i] ← NULL
+    ENDFOR
+END

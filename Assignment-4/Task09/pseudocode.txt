@@ -1,0 +1,67 @@
+CLASS Vehicle
+    PROTECTED:
+        STRING vehicleVIN
+        REAL   baseWeightKg
+    PUBLIC:
+        CONSTRUCTOR(vin AS STRING, weight AS REAL)
+            vehicleVIN ← vin
+            baseWeightKg ← weight
+            PRINT "[1] Vehicle constructor"
+        ENDCONSTRUCTOR
+        VIRTUAL DESTRUCTOR()
+            PRINT "[~1] Vehicle destructor"
+        ENDDESTRUCTOR
+        METHOD DisplaySpecs()
+            PRINT "VIN: ", vehicleVIN, ", base weight: ", baseWeightKg, " kg"
+        ENDMETHOD
+ENDCLASS
+
+CLASS AutonomousVehicle EXTENDS Vehicle
+    PROTECTED:
+        STRING lidarSensorID
+        STRING firmwareVersion
+    PUBLIC:
+        CONSTRUCTOR(vin AS STRING, weight AS REAL, lidar AS STRING, fw AS STRING)
+                : BASE(vin, weight)              // Vehicle(vin, weight)
+            lidarSensorID ← lidar
+            firmwareVersion ← fw
+            PRINT "[2] AutonomousVehicle constructor"
+        ENDCONSTRUCTOR
+        DESTRUCTOR()
+            PRINT "[~2] AutonomousVehicle destructor"
+        ENDDESTRUCTOR
+ENDCLASS
+
+CLASS DeliveryDrone EXTENDS AutonomousVehicle
+    PRIVATE:
+        REAL    payloadCapacityKg
+        INTEGER batteryChargePercent
+    PUBLIC:
+        CONSTRUCTOR(vin AS STRING, weight AS REAL, lidar AS STRING, fw AS STRING,
+                    payload AS REAL, battery AS INTEGER)
+                : BASE(vin, weight, lidar, fw)   // AutonomousVehicle(...)
+            payloadCapacityKg ← payload
+            batteryChargePercent ← battery
+            PRINT "[3] DeliveryDrone constructor"
+        ENDCONSTRUCTOR
+        DESTRUCTOR()
+            PRINT "[~3] DeliveryDrone destructor"
+        ENDDESTRUCTOR
+        METHOD DisplayFlightStatus()
+            DisplaySpecs()                       // inherited from Vehicle
+            PRINT "LiDAR: ", lidarSensorID, ", firmware: ", firmwareVersion
+            PRINT "Payload: ", payloadCapacityKg, " kg, battery: ", batteryChargePercent, "%"
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    DECLARE vPtr AS POINTER TO Vehicle
+    DECLARE dPtr AS POINTER TO DeliveryDrone
+    vPtr ← NEW DeliveryDrone("DRN-7X42-0091", 12.5, "LDR-360-A7", "v4.2.1", 5.0, 87)
+    vPtr->DisplaySpecs()                         // only Vehicle members visible
+    dPtr ← DYNAMIC_CAST<POINTER TO DeliveryDrone>(vPtr)   // checked downcast
+    IF dPtr <> NULL THEN
+        dPtr->DisplayFlightStatus()
+    ENDIF
+    DELETE vPtr                                  // virtual destructor: full cleanup
+END

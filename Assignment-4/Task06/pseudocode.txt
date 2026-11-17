@@ -1,0 +1,72 @@
+CLASS Person
+    PROTECTED:
+        STRING personID
+        STRING fullName
+        STRING email
+    PUBLIC:
+        CONSTRUCTOR(id AS STRING, name AS STRING, mail AS STRING)
+            personID ← id
+            fullName ← name
+            email    ← mail
+            PRINT "[1] Person(", personID, ") constructed"
+        ENDCONSTRUCTOR
+ENDCLASS
+
+CLASS Student INHERITS VIRTUAL Person
+    PROTECTED:
+        REAL    gpa
+        INTEGER creditsEarned
+    PUBLIC:
+        CONSTRUCTOR(id, name, mail AS STRING, g AS REAL, credits AS INTEGER)
+                : Person(id, name, mail)         // used only when Student is most derived
+            gpa ← g
+            creditsEarned ← credits
+            PRINT "[2] Student part constructed"
+        ENDCONSTRUCTOR
+ENDCLASS
+
+CLASS Faculty INHERITS VIRTUAL Person
+    PROTECTED:
+        STRING academicDepartment
+        STRING rankTitle
+    PUBLIC:
+        CONSTRUCTOR(id, name, mail AS STRING, dept AS STRING, rank AS STRING)
+                : Person(id, name, mail)         // used only when Faculty is most derived
+            academicDepartment ← dept
+            rankTitle ← rank
+            PRINT "[3] Faculty part constructed"
+        ENDCONSTRUCTOR
+ENDCLASS
+
+CLASS TeachingAssistant INHERITS Student, Faculty
+    PRIVATE:
+        REAL   stipendAmount
+        STRING assignedCourse
+    PUBLIC:
+        CONSTRUCTOR(id, name, mail AS STRING, g AS REAL, credits AS INTEGER,
+                    dept, rank AS STRING, stipend AS REAL, course AS STRING)
+                : Person(id, name, mail),                  // most derived class initialises
+                  Student(id, name, mail, g, credits),     // the virtual root directly
+                  Faculty(id, name, mail, dept, rank)
+            stipendAmount  ← stipend
+            assignedCourse ← course
+            PRINT "[4] TeachingAssistant constructed"
+        ENDCONSTRUCTOR
+
+        METHOD DisplayTARecord()
+            PRINT "Person ID  : ", personID           // one shared Person: no ambiguity
+            PRINT "Name       : ", fullName
+            PRINT "Email      : ", email
+            PRINT "GPA        : ", gpa, " (", creditsEarned, " credits)"
+            PRINT "Department : ", academicDepartment, " / ", rankTitle
+            PRINT "Course     : ", assignedCourse
+            PRINT "Stipend    : Rs. ", stipendAmount
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    TeachingAssistant ta ← NEW TeachingAssistant("TA-2024-017", "Priya Raman",
+                           "priya.r@univ.edu", 9.12, 142, "Computer Science",
+                           "Junior Instructor", 18000.00, "CS201 Data Structures")
+    ta.DisplayTARecord()
+END

@@ -1,0 +1,48 @@
+CLASS Point2D
+    PUBLIC:
+        REAL x
+        REAL y
+        CONSTRUCTOR(xVal AS REAL = 0.0, yVal AS REAL = 0.0)
+            x ← xVal
+            y ← yVal
+            PRINT "Point2D constructed at (", x, ", ", y, ")"
+        ENDCONSTRUCTOR
+ENDCLASS
+
+CLASS Circle
+    PRIVATE:
+        Point2D centerPoint                      // has-a: member object
+        REAL radius
+    PUBLIC:
+        CONSTRUCTOR() : centerPoint(0.0, 0.0)    // member object initialised first
+            radius ← 1.0
+            PRINT "Circle constructed, radius ", radius
+        ENDCONSTRUCTOR
+
+        METHOD SetCenter(newX AS REAL, newY AS REAL) RETURNS REF Circle
+            centerPoint.x ← newX
+            centerPoint.y ← newY
+            RETURN REF THIS                      // *this: the same object
+        ENDMETHOD
+
+        METHOD SetRadius(r AS REAL) RETURNS REF Circle
+            IF r > 0.0 THEN
+                radius ← r
+            ELSE
+                PRINT "SetRadius(", r, ") rejected: radius must be > 0"
+            ENDIF
+            RETURN REF THIS
+        ENDMETHOD
+
+        METHOD Draw()
+            CONSTANT REAL PI ← 3.14159265358979
+            PRINT "Circle: center (", centerPoint.x, ", ", centerPoint.y, "), radius ", radius
+            PRINT "        area ", PI * radius * radius, ", circumference ", 2 * PI * radius
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    Circle myCircle ← NEW Circle()
+    myCircle.SetCenter(12.5, 30.0).SetRadius(7.5).Draw()
+    myCircle.SetRadius(-3.0).Draw()              // validation test: radius unchanged
+END
