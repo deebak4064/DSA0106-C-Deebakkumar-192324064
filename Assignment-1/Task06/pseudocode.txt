@@ -1,0 +1,118 @@
+CLASS WaterConsumer
+    PRIVATE:
+        STRING  consumerID
+        REAL    previousReading          // cubic metres
+        REAL    currentReading           // cubic metres
+        REAL    unitsConsumed
+        REAL    totalBill
+        // supporting attributes used by DisplayBill
+        REAL    tier1Cost, tier2Cost, tier3Cost, surcharge
+        BOOLEAN isValid
+
+    PUBLIC:
+        CONSTRUCTOR WaterConsumer()
+            consumerID      ← ""
+            previousReading ← 0.0
+            currentReading  ← 0.0
+            unitsConsumed   ← 0.0
+            totalBill       ← 0.0
+            tier1Cost ← 0.0
+            tier2Cost ← 0.0
+            tier3Cost ← 0.0
+            surcharge ← 0.0
+            isValid   ← FALSE
+        ENDCONSTRUCTOR
+
+        METHOD Initialize(STRING id, REAL prev, REAL curr) RETURNS BOOLEAN
+            IF prev < 0.0 OR curr < 0.0 THEN
+                PRINT "Error: meter readings cannot be negative."
+                isValid ← FALSE
+            ELSE IF curr < prev THEN
+                PRINT "Error: current reading is below previous reading."
+                isValid ← FALSE
+            ELSE
+                consumerID      ← id
+                previousReading ← prev
+                currentReading  ← curr
+                isValid         ← TRUE
+            ENDIF
+            RETURN isValid
+        ENDMETHOD
+
+        METHOD CalculateConsumption()
+            IF isValid = TRUE THEN
+                unitsConsumed ← currentReading - previousReading
+            ENDIF
+        ENDMETHOD
+
+        METHOD ComputeBill()
+            CONSTANT REAL TIER1_LIMIT    ← 100.0
+            CONSTANT REAL TIER2_LIMIT    ← 300.0
+            CONSTANT REAL RATE1          ← 1.50
+            CONSTANT REAL RATE2          ← 2.50
+            CONSTANT REAL RATE3          ← 4.00
+            CONSTANT REAL SURCHARGE_RATE ← 0.10
+            REAL tier1Units, tier2Units, tier3Units, baseAmount
+
+            IF unitsConsumed <= TIER1_LIMIT THEN
+                tier1Units ← unitsConsumed
+                tier2Units ← 0.0
+                tier3Units ← 0.0
+            ELSE IF unitsConsumed <= TIER2_LIMIT THEN
+                tier1Units ← TIER1_LIMIT
+                tier2Units ← unitsConsumed - TIER1_LIMIT
+                tier3Units ← 0.0
+            ELSE
+                tier1Units ← TIER1_LIMIT
+                tier2Units ← TIER2_LIMIT - TIER1_LIMIT
+                tier3Units ← unitsConsumed - TIER2_LIMIT
+            ENDIF
+
+            tier1Cost  ← tier1Units * RATE1
+            tier2Cost  ← tier2Units * RATE2
+            tier3Cost  ← tier3Units * RATE3
+            baseAmount ← tier1Cost + tier2Cost + tier3Cost
+
+            IF unitsConsumed > TIER2_LIMIT THEN
+                surcharge ← baseAmount * SURCHARGE_RATE
+            ELSE
+                surcharge ← 0.0
+            ENDIF
+
+            totalBill ← baseAmount + surcharge
+        ENDMETHOD
+
+        METHOD DisplayBill()
+            PRINT "========== WATER BILL INVOICE =========="
+            PRINT "Consumer ID      : ", consumerID
+            PRINT "Previous Reading : ", previousReading, " m3"
+            PRINT "Current Reading  : ", currentReading, " m3"
+            PRINT "Units Consumed   : ", unitsConsumed, " m3"
+            PRINT "Tier 1 (1-100)   : $", tier1Cost
+            PRINT "Tier 2 (101-300) : $", tier2Cost
+            PRINT "Tier 3 (> 300)   : $", tier3Cost
+            PRINT "Env. Surcharge   : $", surcharge
+            PRINT "TOTAL PAYABLE    : $", totalBill
+            PRINT "========================================"
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    WaterConsumer consumer ← NEW WaterConsumer()
+    STRING id
+    REAL   prev, curr
+
+    PRINT "Enter consumer ID      : "
+    INPUT id
+    PRINT "Enter previous reading : "
+    INPUT prev
+    PRINT "Enter current reading  : "
+    INPUT curr
+    IF consumer.Initialize(id, prev, curr) = TRUE THEN
+        consumer.CalculateConsumption()
+        consumer.ComputeBill()
+        consumer.DisplayBill()
+    ELSE
+        PRINT "Billing aborted: invalid meter readings."
+    ENDIF
+END

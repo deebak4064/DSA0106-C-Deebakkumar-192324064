@@ -1,0 +1,84 @@
+// ---------- Hexadecimal bit-mask constants ----------
+CONSTANT INTEGER GYRO_LOCKED      ← 0x01    // Bit 0
+CONSTANT INTEGER ACCEL_CALIBRATED ← 0x02    // Bit 1
+CONSTANT INTEGER BARO_ONLINE      ← 0x04    // Bit 2
+CONSTANT INTEGER GPS_FIX          ← 0x08    // Bit 3
+CONSTANT INTEGER LOW_BATTERY      ← 0x10    // Bit 4
+CONSTANT INTEGER OVER_TEMP        ← 0x20    // Bit 5
+CONSTANT INTEGER RADIO_LINK       ← 0x40    // Bit 6 (non-blocking)
+CONSTANT INTEGER FATAL_ACTUATOR   ← 0x80    // Bit 7
+CONSTANT INTEGER BYTE_MASK        ← 0xFF
+CONSTANT INTEGER MANDATORY_MASK   ← GYRO_LOCKED BITOR ACCEL_CALIBRATED
+                                    BITOR BARO_ONLINE BITOR GPS_FIX   // 0x0F
+CONSTANT INTEGER INHIBITOR_MASK   ← LOW_BATTERY BITOR OVER_TEMP
+                                    BITOR FATAL_ACTUATOR              // 0xB0
+
+METHOD CheckFlightReadiness(INTEGER statusRegister) RETURNS BOOLEAN
+    INTEGER presentSensors, missingSensors, crossCheck, activeInhibitors
+    BOOLEAN ready ← TRUE
+
+    statusRegister   ← statusRegister BITAND BYTE_MASK   // keep 8 bits
+    presentSensors   ← statusRegister BITAND MANDATORY_MASK
+    missingSensors   ← presentSensors BITXOR MANDATORY_MASK
+    crossCheck       ← (BITNOT statusRegister) BITAND MANDATORY_MASK
+    activeInhibitors ← statusRegister BITAND INHIBITOR_MASK
+
+    IF crossCheck <> missingSensors THEN
+        PRINT "Internal error: mask computation mismatch."
+    ENDIF
+
+    // ---------- Inhibitor diagnostics ----------
+    IF activeInhibitors <> 0 THEN
+        ready ← FALSE
+        IF (activeInhibitors BITAND LOW_BATTERY) <> 0 THEN
+            PRINT "FAULT Bit 4: Low Battery Warning"
+        ENDIF
+        IF (activeInhibitors BITAND OVER_TEMP) <> 0 THEN
+            PRINT "FAULT Bit 5: Over-Temperature Warning"
+        ENDIF
+        IF (activeInhibitors BITAND FATAL_ACTUATOR) <> 0 THEN
+            PRINT "FAULT Bit 7: Fatal Actuator Hardware Failure"
+        ENDIF
+    ENDIF
+
+    // ---------- Missing mandatory sensors ----------
+    IF missingSensors <> 0 THEN
+        ready ← FALSE
+        PRINT "Missing-sensor XOR mask = ", HEX(missingSensors)
+        IF (missingSensors BITAND GYRO_LOCKED) <> 0 THEN
+            PRINT "MISSING Bit 0: Gyroscope not locked"
+        ENDIF
+        IF (missingSensors BITAND ACCEL_CALIBRATED) <> 0 THEN
+            PRINT "MISSING Bit 1: Accelerometer not calibrated"
+        ENDIF
+        IF (missingSensors BITAND BARO_ONLINE) <> 0 THEN
+            PRINT "MISSING Bit 2: Barometric altimeter offline"
+        ENDIF
+        IF (missingSensors BITAND GPS_FIX) <> 0 THEN
+            PRINT "MISSING Bit 3: No GPS satellite fix"
+        ENDIF
+    ENDIF
+
+    // ---------- Radio link: informational only ----------
+    IF (statusRegister BITAND RADIO_LINK) <> 0 THEN
+        PRINT "INFO Bit 6: Radio telemetry link active"
+    ELSE
+        PRINT "INFO Bit 6: Radio link inactive (non-blocking)"
+    ENDIF
+
+    IF ready = TRUE THEN
+        PRINT "STATUS: CLEARED FOR FLIGHT"
+    ELSE
+        PRINT "STATUS: FLIGHT INHIBITED"
+    ENDIF
+    RETURN ready
+ENDMETHOD
+
+BEGIN Main
+    ARRAY testBytes[2] OF INTEGER ← {0x4F, 0x3B}
+    INTEGER i
+    FOR i ← 0 TO 1 STEP 1
+        PRINT "--- statusRegister = ", HEX(testBytes[i]), " ---"
+        CheckFlightReadiness(testBytes[i])
+    ENDFOR
+END

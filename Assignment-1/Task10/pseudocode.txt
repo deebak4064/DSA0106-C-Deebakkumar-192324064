@@ -1,0 +1,88 @@
+CLASS ATM_SessionController
+    PRIVATE:
+        CONSTANT INTEGER PRESET_PIN   ← 4821
+        CONSTANT INTEGER MAX_ATTEMPTS ← 3
+        CONSTANT INTEGER NOTE_VALUE   ← 100
+        REAL    balance
+        BOOLEAN cardLocked
+
+        METHOD Authenticate() RETURNS BOOLEAN
+            INTEGER attempts ← 0
+            INTEGER enteredPIN
+            WHILE attempts < MAX_ATTEMPTS DO
+                PRINT "Enter 4-digit PIN: "
+                INPUT enteredPIN
+                attempts ← attempts + 1
+                IF enteredPIN = PRESET_PIN THEN
+                    PRINT "PIN accepted."
+                    RETURN TRUE
+                ELSE
+                    PRINT "Incorrect PIN. Attempts left: ",
+                          MAX_ATTEMPTS - attempts
+                ENDIF
+            ENDWHILE
+            cardLocked ← TRUE
+            PRINT "Card locked: 3 incorrect attempts."
+            RETURN FALSE
+        ENDMETHOD
+
+        METHOD Deposit(REAL amount)
+            IF amount > 0.0 THEN
+                balance ← balance + amount
+                PRINT "Deposited $", amount, ". New balance: $", balance
+            ELSE
+                PRINT "Declined: deposit must be a positive amount."
+            ENDIF
+        ENDMETHOD
+
+        METHOD Withdraw(INTEGER amount)
+            IF amount <= 0 THEN
+                PRINT "Declined: amount must be positive."
+            ELSE IF amount > balance THEN
+                PRINT "Declined: insufficient balance."
+            ELSE IF amount MOD NOTE_VALUE <> 0 THEN
+                PRINT "Declined: amount must be a multiple of 100."
+            ELSE
+                balance ← balance - amount
+                PRINT "Please collect $", amount, ". New balance: $", balance
+            ENDIF
+        ENDMETHOD
+
+    PUBLIC:
+        CONSTRUCTOR ATM_SessionController(REAL openingBalance)
+            balance    ← openingBalance
+            cardLocked ← FALSE
+        ENDCONSTRUCTOR
+
+        METHOD RunSession()
+            INTEGER choice ← 0                  // sentinel value is 4
+            REAL    depositAmount
+            INTEGER withdrawAmount
+
+            IF Authenticate() = FALSE THEN
+                RETURN                          // terminate immediately
+            ENDIF
+
+            WHILE choice <> 4 DO
+                PRINT "1: Balance  2: Deposit  3: Withdraw  4: Exit"
+                PRINT "Choice: "
+                INPUT choice
+                CASE choice OF
+                    1: PRINT "Available balance: $", balance
+                    2: PRINT "Enter deposit amount: "
+                       INPUT depositAmount
+                       Deposit(depositAmount)
+                    3: PRINT "Enter withdrawal amount: "
+                       INPUT withdrawAmount
+                       Withdraw(withdrawAmount)
+                    4: PRINT "Thank you. Session ended."
+                    OTHERWISE: PRINT "Invalid option. Choose 1 to 4."
+                ENDCASE
+            ENDWHILE
+        ENDMETHOD
+ENDCLASS
+
+BEGIN Main
+    ATM_SessionController atm ← NEW ATM_SessionController(5000.00)
+    atm.RunSession()
+END

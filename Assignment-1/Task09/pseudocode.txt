@@ -1,0 +1,55 @@
+BEGIN DivisorAndPrimeEngine
+    INTEGER N, d, limit, pairedDivisor, sumOfDivisors
+
+InputPrompt:
+    PRINT "Enter a positive integer N: "
+    INPUT N
+    IF N <= 0 THEN
+        PRINT "Error: N must be greater than 0. Try again."
+        GOTO InputPrompt                        // jump back for re-entry
+    ENDIF
+
+    // ---------- Edge case N = 1 ----------
+    IF N = 1 THEN
+        PRINT "N = 1 has no proper divisors. Sum = 0"
+        PRINT "Classification: Deficient (1 is neither prime nor composite)"
+        GOTO Finish
+    ENDIF
+
+    // ---------- Divisor generation in O(sqrt N) ----------
+    sumOfDivisors ← 1                           // 1 divides every N > 1
+    limit         ← FLOOR(SQRT(N))
+
+    FOR d ← 2 TO limit STEP 1
+        IF N MOD d <> 0 THEN
+            CONTINUE                            // skip non-divisors
+        ENDIF
+        pairedDivisor ← N DIV d
+        IF pairedDivisor = d THEN               // perfect square: count once
+            sumOfDivisors ← sumOfDivisors + d
+        ELSE
+            sumOfDivisors ← sumOfDivisors + d + pairedDivisor
+        ENDIF
+        PRINT "Divisor pair: ", d, " and ", pairedDivisor
+    ENDFOR
+
+    PRINT "Sum of proper divisors = ", sumOfDivisors
+
+    // ---------- Prime check ----------
+    IF sumOfDivisors = 1 THEN
+        PRINT N, " is Prime"
+    ELSE
+        PRINT N, " is Composite"
+    ENDIF
+
+    // ---------- Classification ----------
+    IF sumOfDivisors = N THEN
+        PRINT "Classification: Perfect Number"
+    ELSE IF sumOfDivisors > N THEN
+        PRINT "Classification: Abundant Number"
+    ELSE
+        PRINT "Classification: Deficient Number"
+    ENDIF
+
+Finish:
+END

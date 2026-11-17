@@ -1,0 +1,81 @@
+BEGIN TaxCalculationEngine
+    // ---------- Statutory constants ----------
+    CONSTANT REAL CAP_80C     ← 150000.00
+    CONSTANT REAL CAP_HEALTH  ← 25000.00
+    CONSTANT REAL SLAB1_LIMIT ← 250000.00
+    CONSTANT REAL SLAB2_LIMIT ← 500000.00
+    CONSTANT REAL SLAB3_LIMIT ← 1000000.00
+    CONSTANT REAL RATE_SLAB2  ← 0.05
+    CONSTANT REAL RATE_SLAB3  ← 0.20
+    CONSTANT REAL RATE_SLAB4  ← 0.30
+    CONSTANT REAL CESS_RATE   ← 0.04
+
+    // ---------- Variables ----------
+    REAL    grossAnnualSalary, deduction80C, deductionHealthInsurance
+    REAL    eligible80C, eligibleHealth, totalDeduction, taxableIncome
+    REAL    rawTax, cess, totalTax
+    INTEGER finalTax
+
+    PRINT "Enter gross annual salary       : "
+    INPUT grossAnnualSalary
+    PRINT "Enter 80C deduction             : "
+    INPUT deduction80C
+    PRINT "Enter health insurance deduction: "
+    INPUT deductionHealthInsurance
+
+    // ---------- Step 0: input validation ----------
+    IF grossAnnualSalary < 0.0 OR deduction80C < 0.0
+                               OR deductionHealthInsurance < 0.0 THEN
+        PRINT "Error: amounts cannot be negative."
+        STOP
+    ENDIF
+
+    // ---------- Step 1: clamp deductions to statutory caps ----------
+    IF deduction80C > CAP_80C THEN
+        eligible80C ← CAP_80C
+    ELSE
+        eligible80C ← deduction80C
+    ENDIF
+
+    IF deductionHealthInsurance > CAP_HEALTH THEN
+        eligibleHealth ← CAP_HEALTH
+    ELSE
+        eligibleHealth ← deductionHealthInsurance
+    ENDIF
+
+    totalDeduction ← eligible80C + eligibleHealth
+
+    // ---------- Step 2: taxable income, clamped at zero ----------
+    IF totalDeduction >= grossAnnualSalary THEN
+        taxableIncome ← 0.0
+    ELSE
+        taxableIncome ← grossAnnualSalary - totalDeduction
+    ENDIF
+
+    // ---------- Step 3: progressive slab tax ----------
+    IF taxableIncome > SLAB3_LIMIT THEN
+        rawTax ← (SLAB2_LIMIT - SLAB1_LIMIT) * RATE_SLAB2
+               + (SLAB3_LIMIT - SLAB2_LIMIT) * RATE_SLAB3
+               + (taxableIncome - SLAB3_LIMIT) * RATE_SLAB4
+    ELSE IF taxableIncome > SLAB2_LIMIT THEN
+        rawTax ← (SLAB2_LIMIT - SLAB1_LIMIT) * RATE_SLAB2
+               + (taxableIncome - SLAB2_LIMIT) * RATE_SLAB3
+    ELSE IF taxableIncome > SLAB1_LIMIT THEN
+        rawTax ← (taxableIncome - SLAB1_LIMIT) * RATE_SLAB2
+    ELSE
+        rawTax ← 0.0
+    ENDIF
+
+    // ---------- Step 4: Health & Education Cess ----------
+    cess     ← rawTax * CESS_RATE
+    totalTax ← rawTax + cess
+
+    // ---------- Step 5: explicit REAL → INTEGER cast ----------
+    // simulates static_cast<long>(totalTax + 0.5): round half up
+    finalTax ← INTEGER(totalTax + 0.5)
+
+    PRINT "Taxable Income  : ", taxableIncome
+    PRINT "Raw Tax         : ", rawTax
+    PRINT "Cess (4%)       : ", cess
+    PRINT "Final Tax (int) : ", finalTax
+END
